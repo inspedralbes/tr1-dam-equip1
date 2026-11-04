@@ -1,0 +1,57 @@
+services:
+  # ─────────────────────────────────────────────
+  #  BASE DE DADES: MariaDB port 3306 (intern) i 3306 (extern)
+  # ─────────────────────────────────────────────
+  db:
+    image: mariadb:11
+    container_name: mariadb_db
+    restart: unless-stopped
+    # Totes les credencials (MARIADB_ROOT_PASSWORD, MARIADB_DATABASE, MARIADB_USER,
+    # MARIADB_PASSWORD) es llegeixen directament de l'arxiu .env de l'arrel.
+    env_file:
+      - .env
+    environment:
+      TZ: Europe/Madrid                   # únic valor no sensible, es pot quedar aquí
+    ports:
+      # Port exposat a la teva màquina (per a DBeaver, HeidiSQL, mysql CLI, o si el Node
+      # corre FORA de Docker). Si el Node corre dins de Docker no cal, però va bé per depurar.
+      - "${DB_PORT:-3306}:3306"
+    # BDD EFÍMERA: les dades viuen en RAM (tmpfs) i s'esborren cada cop que el contenidor
+    # s'atura o es recrea. Així, a cada arrencada MariaDB comença de zero i torna a
+    # executar els scripts de ./database, deixant sempre la mateixa informació.
+    tmpfs:
+      - /var/lib/mysql
+    # tmpfs no suporta O_DIRECT (el mode per defecte d'InnoDB), per això es canvia.
+    command: ["--innodb-flush-method=fsync"]
+    volumes:
+      # Scripts d'inicialització: s'executen en ordre alfabètic cada cop que la BDD
+      # arrenca de zero (ara sempre, perquè no hi ha dades persistents). Admet .sql, .sql.gz i .sh
+      - ./database:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      # Perquè el Node no arrenqui abans que la BDD estigui realment llesta
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks:
+      - app_net
+
+  # ─────────────────────────────────────────────
+  #  Adminer: gestor web de la BDD a http://localhost:8081
+  # ─────────────────────────────────────────────
+  adminer:
+    image: adminer
+    container_name: adminer
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8081:8080"
+    networks:
+      - app_net
+
+networks:
+  app_net:
+    driver: bridge
