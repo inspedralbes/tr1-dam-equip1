@@ -1,57 +1,82 @@
+# HOW MUCH?! LIVE · Base de dades de desenvolupament (sense persistència)
+# Basat en la guia T0: imatge tomsik68/xampp:8 (Apache + MariaDB + phpMyAdmin).
+#
+# Estructura esperada (aquest fitxer és a l'arrel del projecte):
+#   /docker-compose.yml
+#   /database/00-usuari.sql   (base de dades i usuari nodeuser)
+#   /database/schema.sql      (taules)
+#   /database/seed.sql        (preguntes i partides d'exemple)
+#
+# ==================================================================
+#   Aixecar:   docker compose up -d
+#   Esperar:   docker compose ps      (xampp ha de dir "healthy")
+#   Reiniciar de zero:  docker compose down   i després   docker compose up -d
+# ==================================================================
+#
+# Diferències respecte a la comanda "docker run" de la guia:
+#   - NO hi ha cap volum (-v xampp_mysql...): les dades viuen a la capa
+#     d'escriptura del contenidor i desapareixen amb "docker compose down".
+#     (Amb "stop" i "start" es conserven; per tornar a començar, fes "down".)
+#   - NO hi ha --restart: no volem que un contenidor vell s'engegui sol.
+#   - El contenidor es diu howmuch_xampp perquè no xoqui amb xampp_container.
+#   - El servei db-init carrega els SQL automàticament en cada "up".
+#
+# Si el 3306 o el 8080 ja estan ocupats (p. ex. pel xampp_container de la
+# guia, que s'engega sol amb Docker Desktop), atura'l amb
+#   docker stop xampp_container
+# o crea un fitxer .env a l'arrel, al costat d'aquest, amb:
+#   DB_PORT=3307
+#   PMA_PORT=8081
+ 
+name: howmuch-live
+ 
 services:
-  # ─────────────────────────────────────────────
-  #  BASE DE DADES: MariaDB port 3306 (intern) i 3306 (extern)
-  # ─────────────────────────────────────────────
-  db:
-    image: mariadb:11
-    container_name: mariadb_db
-    restart: unless-stopped
-    # Totes les credencials (MARIADB_ROOT_PASSWORD, MARIADB_DATABASE, MARIADB_USER,
-    # MARIADB_PASSWORD) es llegeixen directament de l'arxiu .env de l'arrel.
-    env_file:
-      - .env
-    environment:
-      TZ: Europe/Madrid                   # únic valor no sensible, es pot quedar aquí
+  xampp:
+    image: tomsik68/xampp:8
+    container_name: howmuch_xampp
     ports:
-      # Port exposat a la teva màquina (per a DBeaver, HeidiSQL, mysql CLI, o si el Node
-      # corre FORA de Docker). Si el Node corre dins de Docker no cal, però va bé per depurar.
-      - "${DB_PORT:-3306}:3306"
-    # BDD EFÍMERA: les dades viuen en RAM (tmpfs) i s'esborren cada cop que el contenidor
-    # s'atura o es recrea. Així, a cada arrencada MariaDB comença de zero i torna a
-    # executar els scripts de ./database, deixant sempre la mateixa informació.
-    tmpfs:
-      - /var/lib/mysql
-    # tmpfs no suporta O_DIRECT (el mode per defecte d'InnoDB), per això es canvia.
-    command: ["--innodb-flush-method=fsync"]
+      # Només accessibles des del teu ordinador (igual que a la guia)
+      - "127.0.0.1:${DB_PORT:-3306}:3306"
+      - "127.0.0.1:${PMA_PORT:-8080}:80"
     volumes:
-      # Scripts d'inicialització: s'executen en ordre alfabètic cada cop que la BDD
-      # arrenca de zero (ara sempre, perquè no hi ha dades persistents). Admet .sql, .sql.gz i .sh
-      - ./database:/docker-entrypoint-initdb.d:ro
+      # Només per poder carregar els SQL a mà si cal (vegeu db-init)
+      - ./database:/database:ro
     healthcheck:
-      # Perquè el Node no arrenqui abans que la BDD estigui realment llesta
-      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
-      interval: 10s
+      # Està "healthy" quan MySQL respon i el seed ja és carregat
+      test: ["CMD", "/opt/lampp/bin/mysql", "-uroot", "-e", "SELECT 1 FROM howmuch_live.categories LIMIT 1"]
+      interval: 5s
       timeout: 5s
-      retries: 5
-      start_period: 20s
-    networks:
-      - app_net
-
-  # ─────────────────────────────────────────────
-  #  Adminer: gestor web de la BDD a http://localhost:8081
-  # ─────────────────────────────────────────────
-  adminer:
-    image: adminer
-    container_name: adminer
-    restart: unless-stopped
+      retries: 40
+      start_period: 15s
+ 
+  # Servei d'un sol ús: espera que MySQL arrenqui i carrega els SQL.
+  # Comparteix la xarxa del contenidor xampp, així que MySQL veu la connexió
+  # com a "localhost" i deixa entrar root (que sense això només accepta
+  # connexions de dins del contenidor, vegeu la secció 4.1 de la guia).
+  # Fa servir la mateixa imatge, així que no cal descarregar res més.
+  db-init:
+    image: tomsik68/xampp:8
     depends_on:
-      db:
-        condition: service_healthy
-    ports:
-      - "8081:8080"
-    networks:
-      - app_net
-
-networks:
-  app_net:
-    driver: bridge
+      - xampp
+    network_mode: "service:xampp"
+    restart: "no"
+    environment:
+      LANG: C.UTF-8
+    volumes:
+      - ./database:/database:ro
+    entrypoint:
+      - sh
+      - -c
+      - |
+        echo "Esperant que MySQL arrenqui..."
+        i=0
+        until /opt/lampp/bin/mysql -h127.0.0.1 -uroot -e "SELECT 1" >/dev/null 2>&1; do
+          i=$$((i+1))
+          if [ "$$i" -gt 120 ]; then echo "ERROR: MySQL no ha arrencat"; exit 1; fi
+          sleep 1
+        done
+        for f in 00-usuari.sql schema.sql seed.sql; do
+          echo "Carregant $$f"
+          /opt/lampp/bin/mysql -h127.0.0.1 -uroot --default-character-set=utf8mb4 < "/database/$$f" || exit 1
+        done
+        echo "Base de dades llesta"
