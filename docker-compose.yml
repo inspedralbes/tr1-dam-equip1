@@ -1,0 +1,82 @@
+# HOW MUCH?! LIVE · Base de dades de desenvolupament (sense persistència)
+# Basat en la guia T0: imatge tomsik68/xampp:8 (Apache + MariaDB + phpMyAdmin).
+#
+# Estructura esperada (aquest fitxer és a l'arrel del projecte):
+#   /docker-compose.yml
+#   /database/00-usuari.sql   (base de dades i usuari nodeuser)
+#   /database/schema.sql      (taules)
+#   /database/seed.sql        (preguntes i partides d'exemple)
+#
+# ==================================================================
+#   Aixecar:   docker compose up -d
+#   Esperar:   docker compose ps      (xampp ha de dir "healthy")
+#   Reiniciar de zero:  docker compose down   i després   docker compose up -d
+# ==================================================================
+#
+# Diferències respecte a la comanda "docker run" de la guia:
+#   - NO hi ha cap volum (-v xampp_mysql...): les dades viuen a la capa
+#     d'escriptura del contenidor i desapareixen amb "docker compose down".
+#     (Amb "stop" i "start" es conserven; per tornar a començar, fes "down".)
+#   - NO hi ha --restart: no volem que un contenidor vell s'engegui sol.
+#   - El contenidor es diu howmuch_xampp perquè no xoqui amb xampp_container.
+#   - El servei db-init carrega els SQL automàticament en cada "up".
+#
+# Si el 3306 o el 8080 ja estan ocupats (p. ex. pel xampp_container de la
+# guia, que s'engega sol amb Docker Desktop), atura'l amb
+#   docker stop xampp_container
+# o crea un fitxer .env a l'arrel, al costat d'aquest, amb:
+#   DB_PORT=3307
+#   PMA_PORT=8081
+ 
+name: howmuch-live
+ 
+services:
+  xampp:
+    image: tomsik68/xampp:8
+    container_name: howmuch_xampp
+    ports:
+      # Només accessibles des del teu ordinador (igual que a la guia)
+      - "127.0.0.1:${DB_PORT:-3306}:3306"
+      - "127.0.0.1:${PMA_PORT:-8080}:80"
+    volumes:
+      # Només per poder carregar els SQL a mà si cal (vegeu db-init)
+      - ./database:/database:ro
+    healthcheck:
+      # Està "healthy" quan MySQL respon i el seed ja és carregat
+      test: ["CMD", "/opt/lampp/bin/mysql", "-uroot", "-e", "SELECT 1 FROM howmuch_live.categories LIMIT 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 40
+      start_period: 15s
+ 
+  # Servei d'un sol ús: espera que MySQL arrenqui i carrega els SQL.
+  # Comparteix la xarxa del contenidor xampp, així que MySQL veu la connexió
+  # com a "localhost" i deixa entrar root (que sense això només accepta
+  # connexions de dins del contenidor, vegeu la secció 4.1 de la guia).
+  # Fa servir la mateixa imatge, així que no cal descarregar res més.
+  db-init:
+    image: tomsik68/xampp:8
+    depends_on:
+      - xampp
+    network_mode: "service:xampp"
+    restart: "no"
+    environment:
+      LANG: C.UTF-8
+    volumes:
+      - ./database:/database:ro
+    entrypoint:
+      - sh
+      - -c
+      - |
+        echo "Esperant que MySQL arrenqui..."
+        i=0
+        until /opt/lampp/bin/mysql -h127.0.0.1 -uroot -e "SELECT 1" >/dev/null 2>&1; do
+          i=$$((i+1))
+          if [ "$$i" -gt 120 ]; then echo "ERROR: MySQL no ha arrencat"; exit 1; fi
+          sleep 1
+        done
+        for f in 00-usuari.sql schema.sql seed.sql; do
+          echo "Carregant $$f"
+          /opt/lampp/bin/mysql -h127.0.0.1 -uroot --default-character-set=utf8mb4 < "/database/$$f" || exit 1
+        done
+        echo "Base de dades llesta"
