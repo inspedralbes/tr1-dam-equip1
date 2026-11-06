@@ -1,0 +1,16 @@
+{
+  "name": "game-service",
+  "version": "0.1.0",
+  "description": "How Much?! LIVE - servei de joc (Express + WebSockets natius)",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "mysql2": "^3.11.5",
+    "ws": "^8.18.0"
+  }
+}

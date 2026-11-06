@@ -8,7 +8,7 @@
 #   /database/seed.sql        (preguntes i partides d'exemple)
 #
 # ==================================================================
-#   Aixecar:   docker compose up -d
+#   Aixecar:   docker compose up -d --build
 #   Esperar:   docker compose ps      (xampp ha de dir "healthy")
 #   Reiniciar de zero:  docker compose down   i després   docker compose up -d
 # ==================================================================
@@ -80,3 +80,26 @@ services:
           /opt/lampp/bin/mysql -h127.0.0.1 -uroot --default-character-set=utf8mb4 < "/database/$$f" || exit 1
         done
         echo "Base de dades llesta"
+
+  # Servei de joc: Express (REST /api) + WebSockets natius (/ws) sobre el mateix port.
+  # Es connecta a MariaDB pel nom del servei de Compose ("xampp"), no per localhost.
+  game-service:
+    build: ./backend/game-service
+    container_name: howmuch_game
+    depends_on:
+      xampp:
+        condition: service_healthy   # espera que la BD tingui les dades carregades
+    environment:
+      PORT: 3001
+      DB_HOST: xampp
+      DB_PORT: 3306
+      DB_USER: nodeuser
+      DB_PASSWORD: nodepass
+      DB_NAME: howmuch_live
+    ports:
+      - "${GAME_PORT:-3001}:3001"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3001/api/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
