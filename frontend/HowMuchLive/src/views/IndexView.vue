@@ -2,6 +2,14 @@
 import { ref, reactive } from 'vue'
 import { usePlayerStore } from '@/stores/player'
 
+import { useRouter } from 'vue-router'
+
+const router = useRouter()
+
+//Constants de la sala
+import { useRoomStore, CONFIG_PER_DEFECTE } from '@/stores/room'
+const room = useRoomStore()
+
 const player = usePlayerStore()
 
 //Codi per gestionar nom jugador
@@ -29,7 +37,9 @@ function unirse() {
     return
   }
   errorUnir.value = ''
-  console.log('Unir-se a la sala', codi, 'amb el nom', player.nom)
+  room.unirseSalaProva(player.nom, codi)
+  router.push({ name: 'sala-espera' })
+  
 }
 
 //Codi per gestionar crear sala
@@ -42,14 +52,13 @@ function obrirCrearSala() {
     return
   }
   errorCrear.value = ''
+  Object.assign(configSala, CONFIG_PER_DEFECTE) 
   dialogCrear.value = true
 }
 
 
 const configSala = reactive({
-  visibilitat: 'privada',
-  maxJugadors: 10,
-  rondes: 10
+  ...CONFIG_PER_DEFECTE
 })
 
 
@@ -58,8 +67,9 @@ const opcionsJugadors = [2, 3, 4, 5, 6, 7, 8, 9, 10]
 const opcionsRondes = [5, 6, 7, 8, 9, 10]
 
 function crearSala() {
-  console.log('Crear sala amb la configuració', { ...configSala }, 'i el nom', player.nom)
+  room.crearSalaProva(player.nom, { ...configSala })
   dialogCrear.value = false
+  router.push({ name: 'sala-espera' })
 }
 </script>
 
