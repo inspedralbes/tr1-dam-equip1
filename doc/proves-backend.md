@@ -1,6 +1,6 @@
 # Proves del backend (game-service)
 
-Guia pas a pas per comprovar que el servidor de joc funciona: tests automàtics, API REST i WebSocket amb diversos jugadors.
+Guia pas a pas per comprovar que el servidor de joc funciona: API REST i WebSocket amb diversos jugadors.
 
 - Servei: `backend/game-service`
 - Port: `3001`
@@ -12,34 +12,11 @@ Guia pas a pas per comprovar que el servidor de joc funciona: tests automàtics,
 ## 0. Requisits
 
 - Docker Desktop obert i amb el motor en marxa ("Engine running").
-- Node.js (només per als tests de l'apartat 1).
 - Un navegador (Chrome, Edge o Firefox) per a les proves de WebSocket.
 
 ---
 
-## 1. Tests automàtics
-
-No necessiten Docker ni la base de dades. Comproven la puntuació i el rang del slider.
-
-```bash
-cd backend/game-service
-npm install
-npm test
-```
-
-**Resultat esperat:** `ℹ pass 5` i `ℹ fail 0`.
-
-| Test | Què comprova |
-|---|---|
-| sense empats | 3, 2, 1 i 0 punts segons la distància |
-| empat a la 1a posició | tots dos reben 3 punts i el següent queda 3r (1 punt) |
-| resposta exacta | +2 punts extra |
-| un sol jugador / ningú respon | casos límit |
-| slider | en 1200 rangs aleatoris, la resposta correcta sempre hi queda dins |
-
----
-
-## 2. Aixecar els contenidors
+## 1. Aixecar els contenidors
 
 Des de l'arrel del repositori:
 
@@ -66,7 +43,7 @@ Cada acció de joc apareix amb el prefix `[game][CODI_SALA]`.
 
 ---
 
-## 3. Proves de l'API REST
+## 2. Proves de l'API REST
 
 Obre aquestes URL al navegador o fes-les amb `curl`:
 
@@ -85,11 +62,11 @@ curl http://localhost:3001/api/rooms/XXXXXX
 | `GET /api/rooms/XXXXXX` | 404 | `{"error":{"code":"ROOM_NOT_FOUND",...}}` |
 | `GET /api/noexisteix` | 404 | `{"error":{"code":"NOT_FOUND",...}}` |
 
-> Si `/api/health` torna `503` amb `"db":"down"`, Node funciona però no arriba a MariaDB. Vegeu l'apartat 7.
+> Si `/api/health` torna `503` amb `"db":"down"`, Node funciona però no arriba a MariaDB. Vegeu l'apartat 6.
 
 ---
 
-## 4. Proves del WebSocket amb dos jugadors
+## 3. Proves del WebSocket amb dos jugadors
 
 Farem servir la consola del navegador com a client, sense instal·lar res.
 
@@ -223,7 +200,7 @@ send('END_GAME');
 
 ---
 
-## 5. Proves d'errors i validacions
+## 4. Proves d'errors i validacions
 
 Cal fer-les amb una sala oberta (repeteix els passos 1 i 2 si cal).
 
@@ -248,9 +225,9 @@ Les proves 6, 7, 8, 9, 10 i 11 s'han de fer en una pestanya nova, amb el mateix 
 
 ---
 
-## 6. Proves de desconnexió
+## 5. Proves de desconnexió
 
-### 6.1 Marxa un jugador durant la votació (tancament automàtic)
+### 5.1 Marxa un jugador durant la votació (tancament automàtic)
 
 1. Obre una sala amb Anna i Biel i inicia una ronda.
 2. Vota només amb l'Anna.
@@ -262,18 +239,18 @@ Les proves 6, 7, 8, 9, 10 i 11 s'han de fer en una pestanya nova, amb el mateix 
 - `VOTE_STATUS { answered: [1], total: 1 }`
 - `ROUND_RESULTS`: la ronda es tanca sola perquè tots els que queden ja han votat. En Biel hi surt amb `value: null` i 0 punts.
 
-### 6.2 Marxa l'amfitrió (traspàs del rol)
+### 5.2 Marxa l'amfitrió (traspàs del rol)
 
 1. Obre una sala nova amb Anna (amfitriona) i Biel.
 2. Tanca la pestanya 1 (Anna).
 
 **Resultat esperat a la pestanya 2:** `PLAYER_LEFT { playerId: 1, newHostId: 2 }`. Ara en Biel és l'amfitrió i pot fer `send('START_ROUND')` sense rebre `NOT_HOST`.
 
-### 6.3 Marxen tots
+### 5.3 Marxen tots
 
 Tanca totes les pestanyes d'una sala. Als logs ha d'aparèixer `[game][KMWLWR] sala eliminada`, i `GET /api/rooms` ja no la mostra.
 
-### 6.4 Aïllament entre sales
+### 5.4 Aïllament entre sales
 
 1. Crea dues sales diferents (A i B), cadascuna amb el seu jugador.
 2. Inicia una ronda a la sala A.
@@ -282,7 +259,7 @@ Tanca totes les pestanyes d'una sala. Als logs ha d'aparèixer `[game][KMWLWR] s
 
 ---
 
-## 7. Problemes habituals
+## 6. Problemes habituals
 
 | Símptoma | Causa probable | Solució |
 |---|---|---|
@@ -296,7 +273,7 @@ Tanca totes les pestanyes d'una sala. Als logs ha d'aparèixer `[game][KMWLWR] s
 
 ---
 
-## 8. Resum de missatges
+## 7. Resum de missatges
 
 **Client → servidor**
 
