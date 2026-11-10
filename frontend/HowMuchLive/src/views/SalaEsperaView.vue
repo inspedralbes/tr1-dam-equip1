@@ -1,15 +1,59 @@
 <script setup>
+import { ref } from 'vue'
+import { usePlayerStore } from '@/stores/player'
 import { useRoomStore } from '@/stores/room'
 
+const player = usePlayerStore()
 const room = useRoomStore()
+
+const copiat = ref(false)
+
+async function copiarCodi() {
+    try {
+        await navigator.clipboard.writeText(room.codi)
+        copiat.value = true
+        setTimeout(() => {
+            copiat.value = false
+        }, 2000)
+    } catch (e) {
+        console.error('No s\'ha pogut copiar el codi', e)
+    }
+}
+
+function iniciarPartida() {
+    console.log('Iniciar partida a la sala', room.codi)
+}
 </script>
 
 <template>
     <v-container>
-        <p>Sala {{ room.codi }}</p>
-        <p>Participants: {{ room.nombreParticipants }}</p>
-        <p v-for="p in room.participants" :key="p.nom">
-            {{ p.nom }} <span v-if="p.esHost">(amfitrió)</span>
-        </p>
+        <p>{{ player.nom }}</p>
+
+        <div class="capcalera-codi">
+            <h1>{{ room.codi }}</h1>
+            <v-btn @click="copiarCodi">{{ copiat ? 'Copiat!' : 'Copiar codi' }}</v-btn>
+        </div>
+        <div class="fila-participants">
+            <p>Participants: {{ room.nombreParticipants }}</p>
+            <v-btn v-if="room.esHost" @click="iniciarPartida">Iniciar partida</v-btn>
+        </div>
+
+        <v-list class="llista-participants">
+            <v-list-item v-for="p in room.participants" :key="p.nom" :title="p.nom"
+                :subtitle="p.esHost ? 'Amfitrió' : undefined" />
+        </v-list>
     </v-container>
 </template>
+
+<style scoped>
+.capcalera-codi {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.llista-participants {
+    min-height: 300px;
+}
+</style>
