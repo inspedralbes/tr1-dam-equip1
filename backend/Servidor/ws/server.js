@@ -80,7 +80,7 @@ export function setupWebSocket(server) {
 
       // 2. UNIR-SE A UNA SALA
       if (msg.type === "joinRoom") {
-        const roomId = String(msg.roomId || msg.code);
+        const roomId = Number(msg.roomId || msg.code);
         const room = rooms.get(roomId);
 
         if (!room) {
