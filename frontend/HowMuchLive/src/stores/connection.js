@@ -3,7 +3,7 @@ import { ref } from 'vue'
 import { useRoomStore } from '@/stores/room'
 
 // provisonal, ordinador unai
-const URL_SERVIDOR = 'ws://192.168.18.106:3000'
+const URL_SERVIDOR = 'ws://2.31.112.198:8090'
 
 export const useConnectionStore = defineStore('connection', () => {
     const estat = ref('desconnectat')
@@ -63,11 +63,13 @@ export const useConnectionStore = defineStore('connection', () => {
         const room = useRoomStore()
 
         switch (missatge.type) {
+            case 'roomCreated':
             case 'roomJoined':
                 room.entrarSala(missatge)
                 break
-            case 'participantsUpdate':
-                room.actualitzarParticipants(missatge.participants)
+            case 'playerJoined':
+            case 'playerLeft':
+                room.actualitzarParticipants(missatge.players)
                 break
             case 'error':
                 errorServidor.value = { code: missatge.code, message: missatge.message }

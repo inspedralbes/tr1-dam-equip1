@@ -10,7 +10,10 @@ export const CONFIG_PER_DEFECTE = {
 }
 
 function convertirParticipants(llista) {
-  return llista.map((p) => ({ nom: p.name, esHost: p.isHost }))
+  return llista.map((p, i) => ({
+    nom: p.name,
+    esHost: p.isHost ?? i === 0 // TEMPORAL: el servidor encara no envia isHost
+  }))
 }
 
 export const useRoomStore = defineStore('room', () => {
@@ -46,7 +49,7 @@ export const useRoomStore = defineStore('room', () => {
     codi.value = String(missatge.roomId)
     esHost.value = missatge.isHost
     config.value = { ...missatge.config }
-    participants.value = convertirParticipants(missatge.participants)
+    participants.value = convertirParticipants(missatge.players)
   }
 
   function actualitzarParticipants(llista) {

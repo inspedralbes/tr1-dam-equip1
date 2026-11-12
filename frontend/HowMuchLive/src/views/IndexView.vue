@@ -92,6 +92,7 @@ async function crearSala() {
       name: player.nom,
       config: { ...configSala }
     })
+    router.push({ name: 'sala-espera' })
   } catch (e) {
     errorCrear.value = 'No s\'ha pogut connectar amb el servidor'
     console.log(e.message) 
@@ -114,7 +115,7 @@ watch(() => room.codi, (nou) => {
 watch(() => connexio.errorServidor, (error) => {
   if (!error) return
 
-  const text = MISSATGES_ERROR[error.code] ?? 'Error desconegut del servidor'
+  const text = MISSATGES_ERROR[error.code] ?? error.message ?? 'Error desconegut del servidor'
   if (ultimaAccio === 'unir') {
     errorUnir.value = text
   } else {
