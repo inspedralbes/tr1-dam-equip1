@@ -17,7 +17,7 @@ app.get("/", (req, res) => {
 // Inicialitzem el WebSocket server sobre el mateix servidor HTTP
 setupWebSocket(server);
 
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   console.log(`Servidor Express i WebSockets escoltant al port ${PORT}`);
 });

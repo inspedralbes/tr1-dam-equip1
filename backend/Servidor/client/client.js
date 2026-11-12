@@ -1,7 +1,7 @@
 const WebSocket = require("ws");
 
 // Cambia esto por la URL de tu servidor y el código de sala que te dé Unity
-const URL = "ws://localhost:3000";
+const URL = process.env.WS_URL || "ws://localhost:3000";
 const ROOM_ID = "6174";
 const PLAYER_NAME = "BotDePrueba";
 

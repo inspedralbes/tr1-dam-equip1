@@ -30,7 +30,7 @@ const questions = [
 export function setupWebSocket(server) {
   wss = server
     ? new WebSocketServer({ server })
-    : new WebSocketServer({ port: 3000 });
+    : new WebSocketServer({ port: process.env.PORT || 3000 });
 
   wss.on("connection", (ws) => {
     ws.id = nextClientId++;
