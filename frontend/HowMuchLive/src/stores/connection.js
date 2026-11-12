@@ -1,62 +1,81 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
+import { useRoomStore } from '@/stores/room'
 
-// provisional
-const URL_SERVIDOR = 'ws://localhost:3000'
+// provisonal, ordinador unai
+const URL_SERVIDOR = 'ws://192.168.18.106:3000'
 
 export const useConnectionStore = defineStore('connection', () => {
-  const estat = ref('desconnectat') 
-  let socket = null
+    const estat = ref('desconnectat')
+    const errorServidor = ref(null)
+    let socket = null
+    let promesaConnexio = null
 
-  function connectar() {
-    if (socket) return
+    function connectar() {
+        if (promesaConnexio) return promesaConnexio
 
-    estat.value = 'connectant'
-    socket = new WebSocket(URL_SERVIDOR)
+        promesaConnexio = new Promise((resolve, reject) => {
+            estat.value = 'connectant'
+            socket = new WebSocket(URL_SERVIDOR)
 
-    socket.onopen = () => {
-      estat.value = 'connectat'
+            socket.onopen = () => {
+                estat.value = 'connectat'
+                resolve()
+            }
+
+            socket.onmessage = (event) => {
+                try {
+                    const missatge = JSON.parse(event.data)
+                    gestionarMissatge(missatge)
+                } catch (e) {
+                    console.error('Missatge no vàlid', event.data, e)
+                }
+            }
+
+            socket.onerror = () => {
+                reject(new Error('No s\'ha pogut connectar amb el servidor'))
+            }
+
+            socket.onclose = () => {
+                estat.value = 'desconnectat'
+                socket = null
+                promesaConnexio = null
+            }
+        })
+
+        return promesaConnexio
     }
 
-    socket.onmessage = (event) => {
-      try {
-        const missatge = JSON.parse(event.data)
-        gestionarMissatge(missatge)
-      } catch (e) {
-        console.error('Missatge no vàlid', event.data, e)
-      }
+    function enviar(missatge) {
+        if (!socket || socket.readyState !== WebSocket.OPEN) {
+            console.error('No es pot enviar: no hi ha connexió')
+            return false
+        }
+        socket.send(JSON.stringify(missatge))
+        return true
     }
 
-    socket.onclose = () => {
-      estat.value = 'desconnectat'
-      socket = null
+    function desconnectar() {
+        if (socket) socket.close()
     }
 
-    socket.onerror = (e) => {
-      console.error('Error de WebSocket', e)
+    function gestionarMissatge(missatge) {
+        const room = useRoomStore()
+
+        switch (missatge.type) {
+            case 'roomJoined':
+                room.entrarSala(missatge)
+                break
+            case 'participantsUpdate':
+                room.actualitzarParticipants(missatge.participants)
+                break
+            case 'error':
+                errorServidor.value = { code: missatge.code, message: missatge.message }
+                break
+            default:
+                console.warn('Missatge desconegut', missatge)
+        }
     }
-  }
 
-  function enviar(missatge) {
-    if (!socket || socket.readyState !== WebSocket.OPEN) {
-      console.error('No es pot enviar: no hi ha connexió')
-      return false
-    }
-    socket.send(JSON.stringify(missatge))
-    return true
-  }
-
-  function desconnectar() {
-    if (socket) socket.close()
-  }
-
-  function gestionarMissatge(missatge) {
-    switch (missatge.type) {
-      // aacabar de completar
-      default:
-        console.warn('Missatge desconegut', missatge)
-    }
-  }
-
-  return { estat, connectar, enviar, desconnectar }
+    return { estat, errorServidor, connectar, enviar, desconnectar }
 })

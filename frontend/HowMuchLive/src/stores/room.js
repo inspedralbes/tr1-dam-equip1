@@ -1,11 +1,16 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import { usePlayerStore } from '@/stores/player'
 
 // la configuracio per defecte de la sala
 export const CONFIG_PER_DEFECTE = {
   visibilitat: 'privada',
   maxJugadors: 10,
   rondes: 10
+}
+
+function convertirParticipants(llista) {
+  return llista.map((p) => ({ nom: p.name, esHost: p.isHost }))
 }
 
 export const useRoomStore = defineStore('room', () => {
@@ -37,6 +42,21 @@ export const useRoomStore = defineStore('room', () => {
     config.value = { ...CONFIG_PER_DEFECTE }
   }
 
+  function entrarSala(missatge) {
+    codi.value = String(missatge.roomId)
+    esHost.value = missatge.isHost
+    config.value = { ...missatge.config }
+    participants.value = convertirParticipants(missatge.participants)
+  }
+
+  function actualitzarParticipants(llista) {
+    const player = usePlayerStore()
+    participants.value = convertirParticipants(llista)
+
+    const jo = participants.value.find((p) => p.nom === player.nom)
+    esHost.value = jo ? jo.esHost : false
+  }
+
   function sortir() {
     codi.value = ''
     participants.value = []
@@ -44,5 +64,5 @@ export const useRoomStore = defineStore('room', () => {
     config.value = { ...CONFIG_PER_DEFECTE }
   }
 
-  return { codi, participants, esHost, config, nombreParticipants, crearSalaProva, unirseSalaProva, sortir }
+  return { codi, participants, esHost, config, nombreParticipants, crearSalaProva, unirseSalaProva, entrarSala, actualitzarParticipants, sortir }
 })
