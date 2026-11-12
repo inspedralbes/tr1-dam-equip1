@@ -20,7 +20,7 @@ export const useRoomStore = defineStore('room', () => {
 
   // Accions PROVISIONALS (es substituiran quan hi hagi servidor)
   function crearSalaProva(nomHost, novaConfig) {
-    codi.value = String(Math.floor(100000 + Math.random() * 900000))
+    codi.value = String(Math.floor(1000 + Math.random() * 9000))
     participants.value = [{ nom: nomHost, esHost: true }]
     esHost.value = true
     config.value = { ...novaConfig }
