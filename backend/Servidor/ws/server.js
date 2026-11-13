@@ -4,7 +4,17 @@ const rooms = new Map();
 let nextClientId = 1;
 let wss;
 
-// Llista senzilla de preguntes per a la mecànica del joc
+const categories = [
+  "Ciència i Natura",
+  "Història",
+  "Geografia",
+  "Esports",
+  "Cinema i Sèries",
+  "Música",
+  "Art i Literatura",
+  "Tecnologia",
+];
+
 const questions = [
   {
     text: "Quants quilòmetres de vasos sanguinis hi ha al cos humà?",
@@ -31,7 +41,6 @@ export function setupWebSocket(server) {
   wss = server
     ? new WebSocketServer({ server })
     : new WebSocketServer({ port: process.env.PORT || 3000 });
-
   wss.on("connection", (ws) => {
     ws.id = nextClientId++;
     ws.roomId = null;
@@ -64,6 +73,9 @@ export function setupWebSocket(server) {
           round: 0,
           currentQuestion: null,
           answers: {},
+          categories: [],
+          categoryVotes: {},
+          selectedCategory: null,
         };
         rooms.set(roomId, room);
 
@@ -121,6 +133,78 @@ export function setupWebSocket(server) {
         );
 
         console.log(`Cliente ${ws.id} (${ws.name}) se unió a sala ${roomId}`);
+      }
+
+      // INICIAR VOTACIÓ DE CATEGORIES
+      if (msg.type === "startCategoryVote" || msg.type === "startCategories") {
+        const room = rooms.get(ws.roomId);
+        if (!room) return;
+        if (room.hostId !== ws.id) {
+          ws.send(
+            JSON.stringify({
+              type: "error",
+              message: "Només l'amfitrió pot iniciar la votació de categories",
+            }),
+          );
+          return;
+        }
+
+        room.state = "VOTING_CATEGORY";
+        room.categoryVotes = {};
+        room.selectedCategory = null;
+
+        // 4 categories a l'atzar
+        const shuffled = [...categories].sort(() => 0.5 - Math.random());
+        room.categories = shuffled.slice(0, 4);
+
+        broadcastToRoom(
+          ws.roomId,
+          JSON.stringify({
+            type: "categoryVoteStarted",
+            categories: room.categories,
+            totalPlayers: room.players.length,
+          }),
+        );
+        console.log(
+          `Votació de categories iniciada a sala ${ws.roomId}:`,
+          room.categories,
+        );
+      }
+
+      // VOTAR CATEGORIA
+      if (msg.type === "voteCategory") {
+        const room = rooms.get(ws.roomId);
+        if (!room) return;
+
+        const cat = msg.category;
+        if (!cat) return;
+
+        room.categoryVotes[ws.id] = cat;
+        console.log(`Jugador ${ws.name} (${ws.id}) ha votat categoria: ${cat}`);
+
+        broadcastToRoom(
+          ws.roomId,
+          JSON.stringify({
+            type: "categoryVoted",
+            id: ws.id,
+            name: ws.name,
+            category: cat,
+            votedCount: Object.keys(room.categoryVotes).length,
+            totalPlayers: room.players.length,
+          }),
+        );
+
+        if (Object.keys(room.categoryVotes).length >= room.players.length) {
+          finishCategoryVote(room);
+        }
+      }
+
+      // 2.7 TANCAR VOTACIÓ DE CATEGORIES MANUALMENT (Amfitrió)
+      if (msg.type === "endCategoryVote") {
+        const room = rooms.get(ws.roomId);
+        if (room && room.hostId === ws.id) {
+          finishCategoryVote(room);
+        }
       }
 
       // 3. INICIAR RONDA (Només l'amfitrió)
@@ -224,6 +308,46 @@ export function setupWebSocket(server) {
   return wss;
 }
 
+function finishCategoryVote(room) {
+  if (room.state !== "VOTING_CATEGORY" && room.state !== "LOBBY") return;
+  room.state = "CATEGORY_CHOSEN";
+
+  const counts = {};
+  if (room.categories) {
+    for (const c of room.categories) counts[c] = 0;
+  }
+  for (const id in room.categoryVotes) {
+    const c = room.categoryVotes[id];
+    counts[c] = (counts[c] || 0) + 1;
+  }
+
+  // Categoria amb més vots (en empat, triem la primera)
+  let winningCat =
+    room.categories && room.categories.length > 0 ? room.categories[0] : "";
+  let maxVotes = -1;
+  if (room.categories) {
+    for (const c of room.categories) {
+      const v = counts[c] || 0;
+      if (v > maxVotes) {
+        maxVotes = v;
+        winningCat = c;
+      }
+    }
+  }
+
+  room.selectedCategory = winningCat;
+
+  broadcastToRoom(
+    room.id,
+    JSON.stringify({
+      type: "categorySelected",
+      category: winningCat,
+      votes: counts,
+    }),
+  );
+  console.log(`Categoria guanyadora a sala ${room.id}: ${winningCat}`);
+}
+
 function finishRound(room) {
   if (room.state !== "VOTING") return;
   room.state = "RESULTS";
@@ -291,6 +415,9 @@ function leaveRoom(ws) {
 
   room.players = room.players.filter((p) => p.id !== ws.id);
   delete room.answers[ws.id];
+  if (room.categoryVotes) {
+    delete room.categoryVotes[ws.id];
+  }
 
   if (room.players.length === 0) {
     rooms.delete(ws.roomId);
