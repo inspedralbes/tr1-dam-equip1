@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 
 import IndexView from '@/views/IndexView.vue'
 import SalaEsperaView from '@/views/SalaEsperaView.vue'
+import VotacioCategoriesView from '@/views/VotacioCategoriesView.vue'
 
 
 const router = createRouter({
@@ -16,6 +17,11 @@ const router = createRouter({
       path: '/sala',
       name: 'sala-espera',
       component: SalaEsperaView,
+    },
+    {
+      path: '/categories',
+      name: 'categories',
+      component: VotacioCategoriesView,
     },
 
 

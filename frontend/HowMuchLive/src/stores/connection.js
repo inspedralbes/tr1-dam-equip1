@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { useRoomStore } from '@/stores/room'
+import { useGameStore } from '@/stores/game'
 
 // provisonal, ordinador unai
 const URL_SERVIDOR = 'ws://2.31.112.198:8090'
@@ -61,6 +62,7 @@ export const useConnectionStore = defineStore('connection', () => {
 
     function gestionarMissatge(missatge) {
         const room = useRoomStore()
+        const game = useGameStore()
 
         switch (missatge.type) {
             case 'roomCreated':
@@ -70,6 +72,15 @@ export const useConnectionStore = defineStore('connection', () => {
             case 'playerJoined':
             case 'playerLeft':
                 room.actualitzarParticipants(missatge.players)
+                break
+            case 'categoryVoteStarted':
+                game.iniciarVotacioCategories(missatge)
+                break
+            case 'categoryVoted':
+                game.registrarVot(missatge)
+                break
+            case 'categorySelected':
+                game.categoriaTriada(missatge)
                 break
             case 'error':
                 errorServidor.value = { code: missatge.code, message: missatge.message }

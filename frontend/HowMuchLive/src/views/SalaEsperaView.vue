@@ -1,10 +1,17 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
+import { useConnectionStore } from '@/stores/connection'
+import { useGameStore } from '@/stores/game'
 import { usePlayerStore } from '@/stores/player'
 import { useRoomStore } from '@/stores/room'
 
 const player = usePlayerStore()
 const room = useRoomStore()
+
+const router = useRouter()
+const connexio = useConnectionStore()
+const game = useGameStore()
 
 const copiat = ref(false)
 
@@ -21,8 +28,13 @@ async function copiarCodi() {
 }
 
 function iniciarPartida() {
-    console.log('Iniciar partida a la sala', room.codi)
+    connexio.enviar({ type: 'startCategoryVote' })
 }
+watch(() => game.fase, (fase) => {
+    if (fase === 'VOTING_CATEGORY') {
+        router.push({ name: 'categories' })
+    }
+})
 </script>
 
 <template>
