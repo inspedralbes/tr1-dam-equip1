@@ -3,6 +3,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import IndexView from '@/views/IndexView.vue'
 import SalaEsperaView from '@/views/SalaEsperaView.vue'
 import VotacioCategoriesView from '@/views/VotacioCategoriesView.vue'
+import PreguntaView from '@/views/PreguntaView.vue'
 
 
 const router = createRouter({
@@ -22,6 +23,11 @@ const router = createRouter({
       path: '/categories',
       name: 'categories',
       component: VotacioCategoriesView,
+    },
+    {
+      path: '/pregunta',
+      name: 'pregunta',
+      component: PreguntaView,
     },
 
 

@@ -85,6 +85,12 @@ export const useConnectionStore = defineStore('connection', () => {
             case 'error':
                 errorServidor.value = { code: missatge.code, message: missatge.message }
                 break
+            case 'roundStarted':
+                game.iniciarRonda(missatge)
+                break
+            case 'playerVoted':
+                game.registrarResposta(missatge)
+                break
             default:
                 console.warn('Missatge desconegut', missatge)
         }
