@@ -1,0 +1,450 @@
+:root {
+    flex-grow: 1;
+    background-color: #181b22;
+}
+
+.pregunta-root {
+    flex-grow: 1;
+    background-color: #181b22;
+    padding: 15px 25px;
+}
+
+/* TOP HEADER */
+.top-bar {
+    flex-direction: row;
+    align-items: center;
+    width: 100%;
+    height: 50px;
+    padding-left: 10px;
+    padding-right: 10px;
+    margin-bottom: 6px;
+}
+
+.nom-header {
+    font-size: 22px;
+    color: #ffffff;
+    -unity-font-style: bold;
+}
+
+.btn-next {
+    background-color: #00bfa5;
+    color: #ffffff;
+    font-size: 16px;
+    -unity-font-style: bold;
+    border-radius: 8px;
+    padding-left: 22px;
+    padding-right: 22px;
+    height: 42px;
+    border-width: 0;
+}
+
+.btn-next:hover {
+    background-color: #00a892;
+}
+
+.panel {
+    flex-grow: 1;
+    width: 100%;
+}
+
+/* PREGUNTA PANEL */
+.ronda-badge {
+    font-size: 14px;
+    color: #94a3b8;
+    background-color: #1d212b;
+    border-width: 1px;
+    border-color: #333a4a;
+    border-radius: 6px;
+    padding: 4px 14px;
+    align-self: center;
+    margin-top: 2px;
+    margin-bottom: 8px;
+    -unity-font-style: bold;
+}
+
+.pregunta-card {
+    width: 88%;
+    min-height: 90px;
+    background-color: #242834;
+    border-radius: 12px;
+    border-width: 1px;
+    border-color: #333a4a;
+    align-self: center;
+    justify-content: center;
+    align-items: center;
+    padding: 18px 28px;
+}
+
+.pregunta-text {
+    font-size: 24px;
+    color: #ffffff;
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+    white-space: normal;
+}
+
+.correct-text {
+    font-size: 19px;
+    color: #00bfa5;
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+    margin-top: 8px;
+}
+
+.timer-box {
+    align-self: flex-end;
+    margin-right: 6%;
+    margin-top: 10px;
+    min-height: 25px;
+}
+
+.timer-text {
+    font-size: 17px;
+    color: #f43f5e;
+    background-color: #2b1d24;
+    border-width: 1px;
+    border-color: #f43f5e;
+    padding: 4px 14px;
+    border-radius: 6px;
+    -unity-font-style: bold;
+}
+
+.slider-box {
+    width: 80%;
+    align-self: center;
+    margin-top: 35px;
+    align-items: center;
+}
+
+.slider-row {
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+}
+
+.val-label-min, .val-label-max {
+    font-size: 20px;
+    color: #94a3b8;
+    -unity-font-style: bold;
+    margin-left: 18px;
+    margin-right: 18px;
+}
+
+.pregunta-slider {
+    width: 540px;
+    height: 44px;
+}
+
+.pregunta-slider .unity-base-slider__tracker {
+    height: 16px;
+    background-color: #1d212b;
+    border-radius: 8px;
+    border-width: 1px;
+    border-color: #333a4a;
+}
+
+.pregunta-slider .unity-base-slider__dragger {
+    width: 20px;
+    height: 40px;
+    background-color: #00bfa5;
+    border-radius: 4px;
+    border-width: 0;
+}
+
+.estimacio-label {
+    font-size: 22px;
+    color: #ffffff;
+    background-color: #1d212b;
+    border-width: 1px;
+    border-color: #333a4a;
+    border-radius: 8px;
+    padding: 8px 24px;
+    -unity-font-style: bold;
+    margin-top: 20px;
+}
+
+.btn-submit {
+    min-width: 190px;
+    height: 46px;
+    padding-left: 24px;
+    padding-right: 24px;
+    background-color: #00bfa5;
+    color: #ffffff;
+    font-size: 16px;
+    -unity-font-style: bold;
+    border-radius: 8px;
+    margin-top: 18px;
+    border-width: 0;
+}
+
+.btn-submit:hover {
+    background-color: #00a892;
+}
+
+/* RESPOSTA PANEL & SCALE */
+.resposta-main {
+    flex-direction: row;
+    width: 90%;
+    align-self: center;
+    margin-top: 25px;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.scale-section {
+    width: 66%;
+    position: relative;
+    padding-top: 10px;
+}
+
+.markers-container {
+    width: 100%;
+    height: 160px;
+    position: relative;
+}
+
+.marker-pin {
+    align-items: center;
+    justify-content: flex-start;
+    translate: -50% 0;
+}
+
+.marker-badge {
+    background-color: #242834;
+    border-width: 1px;
+    border-color: #333a4a;
+    color: #ffffff;
+    font-size: 13px;
+    -unity-font-style: bold;
+    border-radius: 6px;
+    padding: 3px 9px;
+    white-space: nowrap;
+}
+
+.marker-badge-me {
+    background-color: #1d212b;
+    border-color: #00bfa5;
+    color: #00bfa5;
+}
+
+.marker-stem {
+    width: 2px;
+    background-color: #64748b;
+}
+
+.marker-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 3px;
+    background-color: #64748b;
+    margin-top: -3px;
+}
+
+.marker-correct-pin {
+    align-items: center;
+    justify-content: flex-start;
+    translate: -50% 0;
+}
+
+.marker-correct-badge {
+    background-color: #00bfa5;
+    color: #ffffff;
+    font-size: 14px;
+    -unity-font-style: bold;
+    border-radius: 6px;
+    padding: 4px 12px;
+    white-space: nowrap;
+}
+
+.marker-correct-stem {
+    width: 3px;
+    background-color: #00bfa5;
+}
+
+.marker-correct-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 4px;
+    background-color: #00bfa5;
+    margin-top: -4px;
+}
+
+.scale-bar {
+    width: 100%;
+    height: 20px;
+    background-color: #1d212b;
+    border-width: 1px;
+    border-color: #333a4a;
+    border-radius: 10px;
+}
+
+.scale-labels-row {
+    flex-direction: row;
+    justify-content: space-between;
+    margin-top: 8px;
+}
+
+.scale-min, .scale-max {
+    font-size: 17px;
+    color: #94a3b8;
+    -unity-font-style: bold;
+}
+
+.posicions-card {
+    width: 30%;
+    background-color: #242834;
+    border-radius: 12px;
+    border-width: 1px;
+    border-color: #333a4a;
+    padding: 16px 20px;
+}
+
+.posicions-title {
+    font-size: 16px;
+    color: #ffffff;
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+    margin-bottom: 12px;
+    padding-bottom: 6px;
+    border-bottom-width: 1px;
+    border-bottom-color: #333a4a;
+}
+
+.posicio-item {
+    font-size: 15px;
+    color: #cbd5e1;
+    -unity-font-style: bold;
+    margin-bottom: 8px;
+}
+
+/* FINAL PANEL (PODIUM) */
+.podium-area {
+    width: 85%;
+    align-self: center;
+    margin-top: 10px;
+    align-items: center;
+}
+
+.podium-row {
+    flex-direction: row;
+    justify-content: center;
+    align-items: flex-end;
+    height: 310px;
+}
+
+.podium-column {
+    align-items: center;
+    margin-left: 12px;
+    margin-right: 12px;
+}
+
+.avatar-circle {
+    width: 52px;
+    height: 52px;
+    border-radius: 26px;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 4px;
+}
+
+.avatar-text {
+    font-size: 13px;
+    color: #ffffff;
+    -unity-font-style: bold;
+}
+
+.podium-name {
+    font-size: 15px;
+    color: #ffffff;
+    -unity-font-style: bold;
+}
+
+.podium-score {
+    font-size: 13px;
+    margin-bottom: 4px;
+    -unity-font-style: bold;
+}
+
+.podium-block {
+    justify-content: center;
+    align-items: center;
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+}
+
+.podium-1 {
+    width: 165px;
+    height: 210px;
+    background-color: #b45309;
+    border-width: 1px;
+    border-color: #d97706;
+}
+
+.podium-2 {
+    width: 145px;
+    height: 150px;
+    background-color: #334155;
+    border-width: 1px;
+    border-color: #475569;
+}
+
+.podium-3 {
+    width: 145px;
+    height: 105px;
+    background-color: #431407;
+    border-width: 1px;
+    border-color: #7c2d12;
+}
+
+.podium-number {
+    font-size: 46px;
+    color: #ffffff;
+    -unity-font-style: bold;
+}
+
+.podium-below-row {
+    flex-direction: row;
+    justify-content: center;
+    margin-top: 18px;
+}
+
+.rank-below-box {
+    width: 200px;
+    height: 40px;
+    background-color: #242834;
+    border-radius: 8px;
+    border-width: 1px;
+    border-color: #333a4a;
+    justify-content: center;
+    align-items: center;
+    margin-left: 10px;
+    margin-right: 10px;
+}
+
+.rank-below-text {
+    font-size: 14px;
+    color: #cbd5e1;
+    -unity-font-style: bold;
+}
+
+.puntuacio-usuari-card {
+    width: 80%;
+    min-height: 54px;
+    background-color: #142926;
+    border-radius: 10px;
+    border-width: 2px;
+    border-color: #00bfa5;
+    align-self: center;
+    justify-content: center;
+    align-items: center;
+    margin-top: 25px;
+    padding: 10px 24px;
+}
+
+.puntuacio-usuari-text {
+    font-size: 20px;
+    color: #a7f3d0;
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+}

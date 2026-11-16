@@ -1,0 +1,39 @@
+<ui:UXML xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" noNamespaceSchemaLocation="../../UIElementsSchema/UIElements.xsd" editor-extension-mode="False">
+    <Style src="project://database/Assets/UI/Main.uss?fileID=7433441132597879392&amp;guid=6ab63152bf66a77c98f8a9e5641c10a0&amp;type=3#Main"/>
+    <ui:VisualElement class="main-container">
+        <ui:VisualElement class="main-card">
+            <ui:Label text="How Much?! Live" class="title"/>
+            
+            <ui:Label text="Nom de jugador:" class="field-label"/>
+            <ui:TextField name="Nom" placeholder-text="Escriu el teu nom..." class="text-input"/>
+            
+            <ui:VisualElement name="CodiContainer" class="codi-container" style="display: none;">
+                <ui:Label text="Codi de la sala:" class="field-label"/>
+                <ui:TextField name="CodiSala" placeholder-text="Escriu el codi..." class="text-input"/>
+            </ui:VisualElement>
+
+            <ui:VisualElement name="CrearContainer" class="crear-container" style="display: none;">
+                <ui:Label text="Màxim de jugadors:" class="field-label"/>
+                <ui:VisualElement class="options-row">
+                    <ui:Button text="5" name="BtnMax5" class="btn-option"/>
+                    <ui:Button text="10" name="BtnMax10" class="btn-option btn-selected"/>
+                    <ui:Button text="15" name="BtnMax15" class="btn-option"/>
+                </ui:VisualElement>
+                
+                <ui:Label text="Nombre de preguntes:" class="field-label"/>
+                <ui:VisualElement class="options-row">
+                    <ui:Button text="5" name="BtnRounds5" class="btn-option btn-selected"/>
+                    <ui:Button text="10" name="BtnRounds10" class="btn-option"/>
+                    <ui:Button text="15" name="BtnRounds15" class="btn-option"/>
+                </ui:VisualElement>
+
+                <ui:Button text="Confirmar i Crear" name="BtnConfirmarCrear" class="btn btn-primary" style="margin-top: 10px; margin-bottom: 5px;"/>
+            </ui:VisualElement>
+            
+            <ui:VisualElement class="btn-group">
+                <ui:Button text="Crear Sala" name="CrearSala" class="btn btn-secondary"/>
+                <ui:Button text="Uneix-Me" name="Uneix-Me" class="btn btn-primary"/>
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>
