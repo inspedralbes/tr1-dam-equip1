@@ -16,31 +16,28 @@ const categories = [
 ];
 
 const questions = [
-  {
-    text: "Quants quilòmetres de vasos sanguinis hi ha al cos humà?",
-    answer: 100000,
-  },
-  {
-    text: "Quantes formigues hi ha al món (en milers de milions)?",
-    answer: 20000000,
-  },
-  { text: "Quantes finestres té l'Empire State Building?", answer: 6500 },
-  {
-    text: "Quants quilòmetres mesura aproximadament l'equador terrestre?",
-    answer: 40075,
-  },
-  { text: "Quants metres d'alçada fa l'Everest?", answer: 8849 },
-  { text: "Quants ossos té el cos humà d'un adult?", answer: 206 },
-  {
-    text: "Quants països hi ha actualment al món reconeguts per l'ONU?",
-    answer: 193,
-  },
+  { text: "Quants quilòmetres de vasos sanguinis hi ha al cos humà?", answer: 100000, min: 10000, max: 200000, unit: "km" },
+  { text: "Quantes formigues hi ha al món (en milions de milions)?", answer: 20, min: 1, max: 100, unit: "milions de milions" },
+  { text: "Quantes finestres té l'Empire State Building?", answer: 6500, min: 1000, max: 15000, unit: "finestres" },
+  { text: "Quants quilòmetres mesura aproximadament l'equador terrestre?", answer: 40075, min: 10000, max: 100000, unit: "km" },
+  { text: "Quants metres d'alçada fa l'Everest?", answer: 8849, min: 5000, max: 15000, unit: "metres" },
+  { text: "Quants ossos té el cos humà d'un adult?", answer: 206, min: 50, max: 500, unit: "ossos" },
+  { text: "Quants països hi ha actualment al món reconeguts per l'ONU?", answer: 193, min: 50, max: 350, unit: "països" },
+  { text: "Quants dents té un ésser humà adult?", answer: 32, min: 10, max: 60, unit: "dents" },
+  { text: "A quina temperatura (ºC) es congela l'aigua?", answer: 0, min: -50, max: 50, unit: "ºC" },
+  { text: "Quants cors té un pop?", answer: 3, min: 1, max: 10, unit: "cors" },
+  { text: "Quants segons té una hora?", answer: 3600, min: 1000, max: 10000, unit: "segons" },
+  { text: "Quantes tecles té un piano estàndard?", answer: 88, min: 40, max: 120, unit: "tecles" },
+  { text: "Quants minuts triga la llum del Sol a arribar a la Terra?", answer: 8, min: 1, max: 30, unit: "minuts" },
+  { text: "Quantes potes té una aranya?", answer: 8, min: 2, max: 20, unit: "potes" },
+  { text: "Quants dies té un any de traspàs?", answer: 366, min: 300, max: 400, unit: "dies" },
 ];
 
 export function setupWebSocket(server) {
   wss = server
     ? new WebSocketServer({ server })
     : new WebSocketServer({ port: process.env.PORT || 3000 });
+
   wss.on("connection", (ws) => {
     ws.id = nextClientId++;
     ws.roomId = null;
@@ -60,22 +57,32 @@ export function setupWebSocket(server) {
       if (msg.type === "createRoom") {
         leaveRoom(ws);
 
-        const roomId = Math.floor(1000 + Math.random() * 9000);
+        // Codi de 5 dígits
+        const roomId = Math.floor(10000 + Math.random() * 90000);
         ws.roomId = roomId;
-        ws.name = msg.name;
+        ws.name = (msg.name || `Jugador ${ws.id}`).trim();
         ws.isHost = true;
+
+        const maxPlayers = Number(msg.maxPlayers) || 10;
+        const totalRounds = Number(msg.totalRounds) || 5;
 
         const room = {
           id: roomId,
           hostId: ws.id,
           state: "LOBBY",
           players: [{ id: ws.id, name: ws.name, score: 0 }],
+          maxPlayers: maxPlayers,
+          totalRounds: totalRounds,
           round: 0,
           currentQuestion: null,
           answers: {},
+          answersOrder: [],
           categories: [],
           categoryVotes: {},
           selectedCategory: null,
+          usedQuestions: [],
+          timerStarted: false,
+          countdownInterval: null,
         };
         rooms.set(roomId, room);
 
@@ -84,10 +91,13 @@ export function setupWebSocket(server) {
             type: "roomCreated",
             roomId: roomId,
             isHost: true,
+            name: ws.name,
             players: room.players,
+            maxPlayers: maxPlayers,
+            totalRounds: totalRounds,
           }),
         );
-        console.log(`Sala ${roomId} creada per ${ws.name} (${ws.id})`);
+        console.log(`Sala ${roomId} creada per ${ws.name} (Max: ${maxPlayers}, Rondes: ${totalRounds})`);
       }
 
       // 2. UNIR-SE A UNA SALA
@@ -102,16 +112,39 @@ export function setupWebSocket(server) {
           return;
         }
 
+        if (room.players.length >= room.maxPlayers) {
+          ws.send(
+            JSON.stringify({ type: "error", message: "La sala està plena" }),
+          );
+          return;
+        }
+
         if (ws.roomId && ws.roomId !== roomId) {
           leaveRoom(ws);
         }
 
+        // Gestió de noms duplicats a la sala
+        let requestedName = (msg.name || `Jugador ${ws.id}`).trim();
+        let existingNames = room.players
+          .filter((p) => p.id !== ws.id)
+          .map((p) => p.name.toLowerCase());
+        let finalName = requestedName;
+        if (existingNames.includes(requestedName.toLowerCase())) {
+          let count = 2;
+          while (
+            existingNames.includes(`${requestedName} (${count})`.toLowerCase())
+          ) {
+            count++;
+          }
+          finalName = `${requestedName} (${count})`;
+        }
+
         ws.roomId = roomId;
-        ws.name = msg.name || `Jugador ${ws.id}`;
+        ws.name = finalName;
         ws.isHost = room.hostId === ws.id;
 
         if (!room.players.some((p) => p.id === ws.id)) {
-          room.players.push({ id: ws.id, name: ws.name, score: 0 });
+          room.players.push({ id: ws.id, name: finalName, score: 0 });
         }
 
         ws.send(
@@ -119,7 +152,9 @@ export function setupWebSocket(server) {
             type: "roomJoined",
             roomId: roomId,
             isHost: ws.isHost,
+            name: finalName,
             players: room.players,
+            totalRounds: room.totalRounds,
           }),
         );
 
@@ -132,10 +167,10 @@ export function setupWebSocket(server) {
           }),
         );
 
-        console.log(`Cliente ${ws.id} (${ws.name}) se unió a sala ${roomId}`);
+        console.log(`Client ${ws.id} (${ws.name}) unit a sala ${roomId}`);
       }
 
-      // INICIAR VOTACIÓ DE CATEGORIES
+      // 3. INICIAR VOTACIÓ DE CATEGORIES
       if (msg.type === "startCategoryVote" || msg.type === "startCategories") {
         const room = rooms.get(ws.roomId);
         if (!room) return;
@@ -153,7 +188,6 @@ export function setupWebSocket(server) {
         room.categoryVotes = {};
         room.selectedCategory = null;
 
-        // 4 categories a l'atzar
         const shuffled = [...categories].sort(() => 0.5 - Math.random());
         room.categories = shuffled.slice(0, 4);
 
@@ -165,13 +199,10 @@ export function setupWebSocket(server) {
             totalPlayers: room.players.length,
           }),
         );
-        console.log(
-          `Votació de categories iniciada a sala ${ws.roomId}:`,
-          room.categories,
-        );
+        console.log(`Votació de categories a sala ${ws.roomId}:`, room.categories);
       }
 
-      // VOTAR CATEGORIA
+      // 4. VOTAR CATEGORIA
       if (msg.type === "voteCategory") {
         const room = rooms.get(ws.roomId);
         if (!room) return;
@@ -180,7 +211,7 @@ export function setupWebSocket(server) {
         if (!cat) return;
 
         room.categoryVotes[ws.id] = cat;
-        console.log(`Jugador ${ws.name} (${ws.id}) ha votat categoria: ${cat}`);
+        console.log(`Jugador ${ws.name} ha votat categoria: ${cat}`);
 
         broadcastToRoom(
           ws.roomId,
@@ -199,48 +230,7 @@ export function setupWebSocket(server) {
         }
       }
 
-      // 2.7 TANCAR VOTACIÓ DE CATEGORIES MANUALMENT (Amfitrió)
-      if (msg.type === "endCategoryVote") {
-        const room = rooms.get(ws.roomId);
-        if (room && room.hostId === ws.id) {
-          finishCategoryVote(room);
-        }
-      }
-
-      // 3. INICIAR RONDA (Només l'amfitrió)
-      if (msg.type === "startRound") {
-        const room = rooms.get(ws.roomId);
-        if (!room) return;
-        if (room.hostId !== ws.id) {
-          ws.send(
-            JSON.stringify({
-              type: "error",
-              message: "Només l'amfitrió pot iniciar la ronda",
-            }),
-          );
-          return;
-        }
-
-        room.round++;
-        room.state = "VOTING";
-        room.answers = {};
-
-        const qIndex = (room.round - 1) % questions.length;
-        room.currentQuestion = questions[qIndex];
-
-        broadcastToRoom(
-          ws.roomId,
-          JSON.stringify({
-            type: "roundStarted",
-            round: room.round,
-            question: room.currentQuestion.text,
-            totalPlayers: room.players.length,
-          }),
-        );
-        console.log(`Ronda ${room.round} iniciada a sala ${ws.roomId}`);
-      }
-
-      // 4. ENVIAR RESPOSTA (Estimació numèrica)
+      // 5. ENVIAR RESPOSTA NUMÈRICA
       if (msg.type === "submitAnswer") {
         const room = rooms.get(ws.roomId);
         if (!room || room.state !== "VOTING") return;
@@ -259,8 +249,10 @@ export function setupWebSocket(server) {
         }
 
         room.answers[ws.id] = val;
+        room.answersOrder.push(ws.id);
 
-        // Notifiquem a tots qui ha votat (sense revelar la resposta)
+        console.log(`Jugador ${ws.name} estimació: ${val}`);
+
         broadcastToRoom(
           ws.roomId,
           JSON.stringify({
@@ -272,28 +264,74 @@ export function setupWebSocket(server) {
           }),
         );
 
-        // Si tots han votat, tanquem ronda automàticament
-        if (Object.keys(room.answers).length >= room.players.length) {
+        const answeredCount = Object.keys(room.answers).length;
+
+        // Regla: Si la majoria ha respost, iniciem comptador de 15s si no està actiu
+        if (
+          answeredCount >= Math.ceil(room.players.length / 2) &&
+          !room.timerStarted &&
+          room.players.length > 1
+        ) {
+          room.timerStarted = true;
+          let secondsLeft = 15;
+          broadcastToRoom(
+            ws.roomId,
+            JSON.stringify({
+              type: "timerStarted",
+              seconds: secondsLeft,
+            }),
+          );
+          room.countdownInterval = setInterval(() => {
+            secondsLeft--;
+            if (secondsLeft <= 0) {
+              clearInterval(room.countdownInterval);
+              room.countdownInterval = null;
+              finishRound(room);
+            }
+          }, 1000);
+        }
+
+        // Si tothom ha votat, tanquem immediatament
+        if (answeredCount >= room.players.length) {
+          if (room.countdownInterval) {
+            clearInterval(room.countdownInterval);
+            room.countdownInterval = null;
+          }
           finishRound(room);
         }
       }
 
-      // 5. TANCAR RONDA MANUALMENT (Amfitrió)
-      if (msg.type === "endRound") {
+      // 6. SEGÜENT RONDA (Amfitrió)
+      if (msg.type === "nextRound") {
         const room = rooms.get(ws.roomId);
-        if (room && room.hostId === ws.id) {
-          finishRound(room);
+        if (!room) return;
+        if (room.hostId !== ws.id) return;
+
+        if (room.round < room.totalRounds) {
+          startNextQuestion(room);
+        } else {
+          finishGame(room);
         }
       }
 
-      // 6. XAT
-      if (msg.type === "chat") {
+      // 7. NOVA PARTIDA (Amfitrió)
+      if (msg.type === "restartGame") {
+        const room = rooms.get(ws.roomId);
+        if (!room) return;
+        if (room.hostId !== ws.id) return;
+
+        room.round = 0;
+        room.usedQuestions = [];
+        room.state = "LOBBY";
+        for (const p of room.players) {
+          p.score = 0;
+        }
+
         broadcastToRoom(
-          ws.roomId,
+          room.id,
           JSON.stringify({
-            type: "chat",
-            from: ws.name || ws.id,
-            text: msg.text,
+            type: "gameRestarted",
+            players: room.players,
           }),
         );
       }
@@ -321,19 +359,26 @@ function finishCategoryVote(room) {
     counts[c] = (counts[c] || 0) + 1;
   }
 
-  // Categoria amb més vots (en empat, triem la primera)
-  let winningCat =
-    room.categories && room.categories.length > 0 ? room.categories[0] : "";
   let maxVotes = -1;
   if (room.categories) {
     for (const c of room.categories) {
       const v = counts[c] || 0;
       if (v > maxVotes) {
         maxVotes = v;
-        winningCat = c;
       }
     }
   }
+
+  // Totes les categories que tenen el nombre màxim de vots
+  const tiedCategories = (room.categories || []).filter(
+    (c) => (counts[c] || 0) === maxVotes,
+  );
+
+  // Desempat intel·ligent: Si hi ha empat, se selecciona aleatòriament entre les empatades!
+  const winningCat =
+    tiedCategories.length > 0
+      ? tiedCategories[Math.floor(Math.random() * tiedCategories.length)]
+      : (room.categories && room.categories.length > 0 ? room.categories[0] : "");
 
   room.selectedCategory = winningCat;
 
@@ -346,11 +391,58 @@ function finishCategoryVote(room) {
     }),
   );
   console.log(`Categoria guanyadora a sala ${room.id}: ${winningCat}`);
+
+  // Després de 3.5 segons revelant la categoria guanyadora, comença la primera pregunta!
+  setTimeout(() => {
+    startNextQuestion(room);
+  }, 3500);
+}
+
+function startNextQuestion(room) {
+  room.round++;
+  if (room.round > room.totalRounds) {
+    finishGame(room);
+    return;
+  }
+
+  const pool = questions.filter((q) => !room.usedQuestions.includes(q.text));
+  const qList = pool.length > 0 ? pool : questions;
+  const q = qList[Math.floor(Math.random() * qList.length)];
+  room.usedQuestions.push(q.text);
+
+  room.currentQuestion = q;
+  room.state = "VOTING";
+  room.answers = {};
+  room.answersOrder = [];
+  room.timerStarted = false;
+  if (room.countdownInterval) {
+    clearInterval(room.countdownInterval);
+    room.countdownInterval = null;
+  }
+
+  broadcastToRoom(
+    room.id,
+    JSON.stringify({
+      type: "roundStarted",
+      round: room.round,
+      totalRounds: room.totalRounds,
+      question: q.text,
+      min: q.min || 0,
+      max: q.max || 100,
+      unit: q.unit || "",
+      totalPlayers: room.players.length,
+    }),
+  );
+  console.log(`Ronda ${room.round}/${room.totalRounds} iniciada: "${q.text}"`);
 }
 
 function finishRound(room) {
   if (room.state !== "VOTING") return;
   room.state = "RESULTS";
+  if (room.countdownInterval) {
+    clearInterval(room.countdownInterval);
+    room.countdownInterval = null;
+  }
 
   const correct = room.currentQuestion.answer;
   const results = [];
@@ -359,39 +451,41 @@ function finishRound(room) {
     const ans = room.answers[p.id];
     const answered = ans !== undefined;
     const diff = answered ? Math.abs(ans - correct) : Infinity;
+    const orderIndex = room.answersOrder.indexOf(p.id);
 
     results.push({
       id: p.id,
       name: p.name,
       estimate: answered ? ans : null,
       diff: diff,
+      order: orderIndex >= 0 ? orderIndex : 999,
       roundPoints: 0,
+      score: p.score,
     });
   }
 
-  // Ordenem de menor diferència a major
-  results.sort((a, b) => a.diff - b.diff);
+  // Ordenem per menor diferència, i en empat pel més ràpid
+  results.sort((a, b) => {
+    if (a.diff === b.diff) return a.order - b.order;
+    return a.diff - b.diff;
+  });
 
-  // Calcular punts segons posició i empats (1r: 3pts, 2n: 2pts, 3r: 1pt, Exacte: +2pts)
+  // Punts: 1r: 3pts, 2n: 2pts, 3r: 1pt, Exacte: +2pts
   for (let i = 0; i < results.length; i++) {
     if (results[i].diff === Infinity) continue;
-
-    let pos = 1;
-    for (let j = 0; j < results.length; j++) {
-      if (results[j].diff < results[i].diff) pos++;
-    }
-
     let pts = 0;
-    if (pos === 1) pts = 3;
-    else if (pos === 2) pts = 2;
-    else if (pos === 3) pts = 1;
+    if (i === 0) pts = 3;
+    else if (i === 1) pts = 2;
+    else if (i === 2) pts = 1;
 
-    if (results[i].diff === 0) pts += 2; // Resposta exacta
+    if (results[i].diff === 0) pts += 2;
 
     results[i].roundPoints = pts;
-
     const player = room.players.find((x) => x.id === results[i].id);
-    if (player) player.score += pts;
+    if (player) {
+      player.score += pts;
+      results[i].score = player.score;
+    }
   }
 
   const ranking = [...room.players].sort((a, b) => b.score - a.score);
@@ -400,12 +494,32 @@ function finishRound(room) {
     room.id,
     JSON.stringify({
       type: "roundResults",
+      round: room.round,
+      totalRounds: room.totalRounds,
+      question: room.currentQuestion.text,
       correctAnswer: correct,
+      min: room.currentQuestion.min || 0,
+      max: room.currentQuestion.max || 100,
+      unit: room.currentQuestion.unit || "",
       results: results,
       ranking: ranking,
     }),
   );
-  console.log(`Resultats enviats per a la sala ${room.id}`);
+  console.log(`Resultats ronda ${room.round}/${room.totalRounds} enviats`);
+}
+
+function finishGame(room) {
+  room.state = "GAME_OVER";
+  const ranking = [...room.players].sort((a, b) => b.score - a.score);
+
+  broadcastToRoom(
+    room.id,
+    JSON.stringify({
+      type: "gameOver",
+      ranking: ranking,
+    }),
+  );
+  console.log(`Partida finalitzada a la sala ${room.id}`);
 }
 
 function leaveRoom(ws) {
@@ -420,8 +534,9 @@ function leaveRoom(ws) {
   }
 
   if (room.players.length === 0) {
+    if (room.countdownInterval) clearInterval(room.countdownInterval);
     rooms.delete(ws.roomId);
-    console.log(`Sala ${ws.roomId} buida, eliminada`);
+    console.log(`Sala ${ws.roomId} eliminada`);
   } else {
     if (room.hostId === ws.id && room.players.length > 0) {
       room.hostId = room.players[0].id;
@@ -448,7 +563,6 @@ function broadcastToRoom(roomId, message) {
   });
 }
 
-// Per si s'arrenca el fitxer sol amb: node ws/server.js
 if (process.argv[1] && process.argv[1].endsWith("server.js")) {
   setupWebSocket();
   console.log("Servidor WebSocket autònom escoltant al port 3000");
