@@ -12,7 +12,7 @@ name: howmuch-live
 
 services:
   servidor:
-    build: ../backend/Servidor
+    build: /Servidor
     environment:
       PORT: 3000
     restart: unless-stopped
