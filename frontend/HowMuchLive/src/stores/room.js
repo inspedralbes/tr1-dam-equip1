@@ -23,17 +23,19 @@ export const useRoomStore = defineStore('room', () => {
 
   const nombreParticipants = computed(() => participants.value.length)
 
+  const nomEnSala = ref('')
+
   function entrarSala(missatge) {
     esHost.value = missatge.isHost
+    nomEnSala.value = missatge.name ?? usePlayerStore().nom
     participants.value = convertirParticipants(missatge.players)
     codi.value = String(missatge.roomId)
   }
 
   function actualitzarParticipants(llista) {
-    const player = usePlayerStore()
     participants.value = convertirParticipants(llista)
 
-    const jo = participants.value.find((p) => p.nom === player.nom)
+    const jo = participants.value.find((p) => p.nom === nomEnSala.value)
     esHost.value = jo ? jo.esHost : false
   }
 
@@ -41,7 +43,8 @@ export const useRoomStore = defineStore('room', () => {
     codi.value = ''
     participants.value = []
     esHost.value = false
+    nomEnSala.value = ''
   }
 
-  return { codi, participants, esHost, nombreParticipants, entrarSala, actualitzarParticipants, sortir }
+  return { codi, participants, esHost, nombreParticipants, nomEnSala, entrarSala, actualitzarParticipants, sortir }
 })

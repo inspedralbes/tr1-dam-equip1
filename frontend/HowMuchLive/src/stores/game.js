@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
 export const useGameStore = defineStore('game', () => {
+
     const fase = ref('LOBBY')
     const categories = ref([])
     const votsRebuts = ref(0)
@@ -9,6 +10,15 @@ export const useGameStore = defineStore('game', () => {
     const categoriaGuanyadora = ref('')
     const recompte = ref({})
     const vots = ref([])
+
+    // Ronda de pregunta
+    const ronda = ref(0)
+    const totalRondes = ref(0)
+    const pregunta = ref('')
+    const minim = ref(null)
+    const maxim = ref(null)
+    const unitat = ref('')
+    const respostes = ref([])
 
     function iniciarVotacioCategories(missatge) {
         categories.value = missatge.categories
@@ -37,6 +47,25 @@ export const useGameStore = defineStore('game', () => {
         fase.value = 'CATEGORY_CHOSEN'
     }
 
+    function iniciarRonda(missatge) {
+        ronda.value = missatge.round
+        totalRondes.value = missatge.totalRounds ?? 0
+        pregunta.value = missatge.question
+        minim.value = missatge.min ?? null
+        maxim.value = missatge.max ?? null
+        unitat.value = missatge.unit ?? ''
+        totalJugadors.value = missatge.totalPlayers
+        respostes.value = []
+        fase.value = 'QUESTION'
+    }
+
+    function registrarResposta(missatge) {
+        if (!respostes.value.some((r) => r.id === missatge.id)) {
+            respostes.value.push({ id: missatge.id, nom: missatge.name })
+        }
+        totalJugadors.value = missatge.totalPlayers
+    }
+
     function reiniciar() {
         fase.value = 'LOBBY'
         categories.value = []
@@ -44,8 +73,19 @@ export const useGameStore = defineStore('game', () => {
         totalJugadors.value = 0
         categoriaGuanyadora.value = ''
         recompte.value = {}
-        vots.value=[]
+        vots.value = []
+        ronda.value = 0
+        totalRondes.value = 0
+        pregunta.value = ''
+        minim.value = null
+        maxim.value = null
+        unitat.value = ''
+        respostes.value = []
     }
 
-    return { fase, categories, votsRebuts, totalJugadors, categoriaGuanyadora, recompte, vots, iniciarVotacioCategories, registrarVot, categoriaTriada, reiniciar }
+    return {
+        fase, categories, votsRebuts, totalJugadors, categoriaGuanyadora, recompte, vots,
+        ronda, totalRondes, pregunta, minim, maxim, unitat, respostes,
+        iniciarVotacioCategories, registrarVot, categoriaTriada, iniciarRonda, registrarResposta, reiniciar
+    }
 })

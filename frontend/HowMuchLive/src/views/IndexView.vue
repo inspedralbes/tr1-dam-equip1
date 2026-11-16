@@ -40,8 +40,8 @@ async function unirse() {
     errorUnir.value = 'Introdueix un codi de sala'
     return
   }
-  if (!/^\d{4}$/.test(codi)) {
-    errorUnir.value = 'El codi ha de tenir 4 xifres'
+  if (!/^\d{5}$/.test(codi)) {
+    errorUnir.value = 'El codi ha de tenir 5 xifres'
     return
   }
 
@@ -90,12 +90,13 @@ async function crearSala() {
     connexio.enviar({
       type: 'createRoom',
       name: player.nom,
-      config: { ...configSala }
+      maxPlayers: configSala.maxJugadors,
+      totalRounds: configSala.rondes
     })
     router.push({ name: 'sala-espera' })
   } catch (e) {
     errorCrear.value = 'No s\'ha pogut connectar amb el servidor'
-    console.log(e.message) 
+    console.log(e.message)
   }
 }
 

@@ -39,7 +39,7 @@ watch(() => game.fase, (fase) => {
 
 <template>
     <v-container>
-        <p>{{ player.nom }}</p>
+        <p>{{ room.nomEnSala }}</p>
 
         <div class="capcalera-codi">
             <h1>{{ room.codi }}</h1>
