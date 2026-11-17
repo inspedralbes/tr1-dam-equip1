@@ -2,10 +2,10 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
 export const useGameStore = defineStore('game', () => {
-    //Fase: 'LOBBY' | 'VOTING_CATEGORY' | 'CATEGORY_CHOSEN' | 'QUESTION' | 'ROUND_RESULTS'
+    // Fase: 'LOBBY' | 'VOTING_CATEGORY' | 'CATEGORY_CHOSEN' | 'QUESTION' | 'ROUND_RESULTS' | 'GAME_OVER'
     const fase = ref('LOBBY')
 
-    //Per votar les categories
+    // Votació de categories
     const categories = ref([])
     const votsRebuts = ref(0)
     const totalJugadors = ref(0)
@@ -13,7 +13,7 @@ export const useGameStore = defineStore('game', () => {
     const recompte = ref({})
     const vots = ref([])
 
-    //Ronda de pregunta
+    // Ronda de pregunta
     const ronda = ref(0)
     const totalRondes = ref(0)
     const pregunta = ref('')
@@ -23,10 +23,13 @@ export const useGameStore = defineStore('game', () => {
     const respostes = ref([])
     const segonsRestants = ref(null)
 
-    //Resultats de la ronda
+    // Resultats de la ronda
     const respostaCorrecta = ref(null)
     const resultats = ref([])
     const classificacio = ref([])
+
+    // Final de la partida
+    const classificacioFinal = ref([])
 
     let intervalCompteEnrere = null
 
@@ -108,9 +111,14 @@ export const useGameStore = defineStore('game', () => {
         fase.value = 'ROUND_RESULTS'
     }
 
+    function acabarPartida(missatge) {
+        aturarCompteEnrere()
+        classificacioFinal.value = missatge.ranking
+        fase.value = 'GAME_OVER'
+    }
+
     function reiniciar() {
         aturarCompteEnrere()
-        fase.value = 'LOBBY'
         categories.value = []
         votsRebuts.value = 0
         totalJugadors.value = 0
@@ -127,13 +135,15 @@ export const useGameStore = defineStore('game', () => {
         respostaCorrecta.value = null
         resultats.value = []
         classificacio.value = []
+        classificacioFinal.value = []
+        fase.value = 'LOBBY'
     }
 
     return {
         fase, categories, votsRebuts, totalJugadors, categoriaGuanyadora, recompte, vots,
         ronda, totalRondes, pregunta, minim, maxim, unitat, respostes, segonsRestants,
-        respostaCorrecta, resultats, classificacio,
+        respostaCorrecta, resultats, classificacio, classificacioFinal,
         iniciarVotacioCategories, registrarVot, categoriaTriada, iniciarRonda, registrarResposta,
-        iniciarCompteEnrere, mostrarResultats, reiniciar
+        iniciarCompteEnrere, mostrarResultats, acabarPartida, reiniciar
     }
 })

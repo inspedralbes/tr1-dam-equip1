@@ -27,6 +27,9 @@ watch(() => game.fase, (fase) => {
     if (fase === 'QUESTION') {
         router.push({ name: 'pregunta' })
     }
+    if (fase === 'GAME_OVER') {
+        router.push({ name: 'final' })
+    }
 })
 </script>
 

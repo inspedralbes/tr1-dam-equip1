@@ -37,6 +37,13 @@ function iniciarPartida() {
   connexio.enviar({ type: "startCategoryVote" });
 }
 
+async function sortir() {
+  connexio.desconnectar()
+  await router.push({ name: 'home' })
+  game.reiniciar()
+  room.sortir()
+}
+
 watch(
   () => game.fase,
   (fase) => {
@@ -55,24 +62,13 @@ watch(
           <div class="lobby-title">Sala d'espera</div>
           <div class="code-label">{{ room.codi }}</div>
 
-          <v-btn
-            v-if="room.codi"
-            class="copy-btn"
-            variant="text"
-            size="small"
-            @click="copiarCodi"
-            :color="copiat ? 'success' : 'primary'"
-          >
+          <v-btn v-if="room.codi" class="copy-btn" variant="text" size="small" @click="copiarCodi"
+            :color="copiat ? 'success' : 'primary'">
             {{ copiat ? "Copiat" : "Copiar codi" }}
           </v-btn>
         </div>
 
-        <v-btn
-          v-if="esHost"
-          class="btn-start"
-          color="primary"
-          @click="iniciarPartida"
-        >
+        <v-btn v-if="esHost" class="btn-start" color="primary" @click="iniciarPartida">
           Iniciar partida
         </v-btn>
       </div>
@@ -82,14 +78,11 @@ watch(
       </div>
 
       <v-list class="players-scroll" density="comfortable">
-        <v-list-item
-          v-for="p in room.participants"
-          :key="p.nom"
-          class="player-item"
-          :title="p.nom"
-          :subtitle="p.esHost ? 'Amfitrió' : undefined"
-        />
+        <v-list-item v-for="p in room.participants" :key="p.nom" class="player-item" :title="p.nom"
+          :subtitle="p.esHost ? 'Amfitrió' : undefined" />
       </v-list>
+
+      <v-btn @click="sortir">Sortir</v-btn>
     </v-card>
   </v-container>
 </template>

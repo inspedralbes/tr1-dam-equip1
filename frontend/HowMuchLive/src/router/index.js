@@ -5,6 +5,7 @@ import SalaEsperaView from '@/views/SalaEsperaView.vue'
 import VotacioCategoriesView from '@/views/VotacioCategoriesView.vue'
 import PreguntaView from '@/views/PreguntaView.vue'
 import ResultatsRondaView from '@/views/ResultatsRondaView.vue'
+import FinalPartidaView from '@/views/FinalPartidaView.vue'
 
 
 const router = createRouter({
@@ -34,6 +35,11 @@ const router = createRouter({
       path: '/resultats',
       name: 'resultats-ronda',
       component: ResultatsRondaView,
+    },
+    {
+      path: '/final',
+      name: 'final',
+      component: FinalPartidaView,
     },
 
 

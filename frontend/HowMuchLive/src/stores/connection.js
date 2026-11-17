@@ -97,6 +97,13 @@ export const useConnectionStore = defineStore('connection', () => {
             case 'roundResults':
                 game.mostrarResultats(missatge)
                 break
+            case 'gameOver':
+                game.acabarPartida(missatge)
+                break
+            case 'gameRestarted':
+                room.actualitzarParticipants(missatge.players)
+                game.reiniciar()
+                break
             default:
                 console.warn('Missatge desconegut', missatge)
         }
