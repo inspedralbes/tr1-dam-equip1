@@ -4,6 +4,7 @@ import IndexView from '@/views/IndexView.vue'
 import SalaEsperaView from '@/views/SalaEsperaView.vue'
 import VotacioCategoriesView from '@/views/VotacioCategoriesView.vue'
 import PreguntaView from '@/views/PreguntaView.vue'
+import ResultatsRondaView from '@/views/ResultatsRondaView.vue'
 
 
 const router = createRouter({
@@ -28,6 +29,11 @@ const router = createRouter({
       path: '/pregunta',
       name: 'pregunta',
       component: PreguntaView,
+    },
+    {
+      path: '/resultats',
+      name: 'resultats-ronda',
+      component: ResultatsRondaView,
     },
 
 

@@ -1,12 +1,14 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { useConnectionStore } from '@/stores/connection'
 import { useGameStore } from '@/stores/game'
 
+const router = useRouter()
 const connexio = useConnectionStore()
 const game = useGameStore()
 
-const hiHaRang = game.min !== null && game.max !== null
+const hiHaRang = game.minim !== null && game.maxim !== null
 const valor = ref(hiHaRang ? Math.round((game.minim + game.maxim) / 2) : 0)
 const enviada = ref(false)
 
@@ -15,27 +17,29 @@ function enviarResposta() {
   enviada.value = true
   connexio.enviar({ type: 'submitAnswer', answer: valor.value })
 }
+
+watch(() => game.fase, (fase) => {
+  if (fase === 'ROUND_RESULTS') {
+    router.push({ name: 'resultats-ronda' })
+  }
+})
 </script>
 
 <template>
   <v-container>
-    <h3>Ronda {{ game.ronda }}</h3>
+    <h3>Ronda {{ game.ronda }} de {{ game.totalRondes }}</h3>
     <h2>{{ game.pregunta }}</h2>
 
+    <p v-if="game.segonsRestants !== null">Temps restant: {{ game.segonsRestants }} s</p>
+
     <div v-if="hiHaRang">
-      <p>La teva resposta: {{ valor}}</p>
-      <v-slider
-        v-model="valor"
-        :min="game.minim"
-        :max="game.maxim"
-        :step="1"
-        :disabled="enviada"
-      />
+      <p>La teva resposta: {{ valor.toLocaleString('ca-ES') }} {{ game.unitat }}</p>
+      <v-slider v-model="valor" :min="game.minim" :max="game.maxim" :step="1" :disabled="enviada" />
       <v-btn :disabled="enviada" @click="enviarResposta">
         {{ enviada ? 'Resposta enviada' : 'Enviar resposta' }}
       </v-btn>
     </div>
-    <p v-else>Per aquesta pregunta no hi ha rang.</p>
+    <p v-else>El servidor no ha enviat el rang de la pregunta.</p>
 
     <p class="mt-4">Han respost {{ game.respostes.length }} de {{ game.totalJugadors }}</p>
     <v-list>
