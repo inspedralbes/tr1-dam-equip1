@@ -94,6 +94,16 @@ watch(
   </v-container>
 </template>
 
+<style>
+html,
+body,
+.v-application,
+.v-application__wrap {
+  background-color: #181b22 !important;
+  min-height: 100vh;
+}
+</style>
+
 <style scoped>
 :deep(body),
 :deep(.v-application) {
@@ -220,4 +230,3 @@ watch(
   background: rgba(255, 255, 255, 0.02);
 }
 </style>
-
