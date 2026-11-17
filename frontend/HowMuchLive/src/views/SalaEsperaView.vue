@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch } from "vue";
+import { computed, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useConnectionStore } from "@/stores/connection";
 import { useGameStore } from "@/stores/game";
@@ -14,6 +14,12 @@ const connexio = useConnectionStore();
 const game = useGameStore();
 
 const copiat = ref(false);
+
+const esHost = computed(
+  () =>
+    Array.isArray(room.participants) &&
+    room.participants.some((p) => p.nom === player.nom && p.esHost),
+);
 
 async function copiarCodi() {
   try {
@@ -30,6 +36,7 @@ async function copiarCodi() {
 function iniciarPartida() {
   connexio.enviar({ type: "startCategoryVote" });
 }
+
 watch(
   () => game.fase,
   (fase) => {
@@ -47,9 +54,25 @@ watch(
         <div class="header-left">
           <div class="lobby-title">Sala d'espera</div>
           <div class="code-label">{{ room.codi }}</div>
+
+          <v-btn
+            v-if="room.codi"
+            class="copy-btn"
+            variant="text"
+            size="small"
+            @click="copiarCodi"
+            :color="copiat ? 'success' : 'primary'"
+          >
+            {{ copiat ? "Copiat" : "Copiar codi" }}
+          </v-btn>
         </div>
 
-        <v-btn class="btn-start" color="primary" @click="iniciarPartida">
+        <v-btn
+          v-if="esHost"
+          class="btn-start"
+          color="primary"
+          @click="iniciarPartida"
+        >
           Iniciar partida
         </v-btn>
       </div>
@@ -108,7 +131,7 @@ watch(
 .header-left {
   display: flex;
   align-items: center;
-  gap: 18px;
+  gap: 12px;
 }
 
 .lobby-title {
@@ -125,6 +148,21 @@ watch(
   border: 1px solid #00bfa5;
   border-radius: 6px;
   padding: 6px 16px;
+}
+
+.copy-btn {
+  min-width: auto;
+  height: 36px !important;
+  font-size: 13px !important;
+  padding: 0 12px !important;
+  border-radius: 8px !important;
+  border: 1px solid rgba(0, 191, 165, 0.5) !important;
+  background: rgba(0, 191, 165, 0.08) !important;
+  color: #7ee7d5 !important;
+}
+
+.copy-btn:hover {
+  background: rgba(0, 191, 165, 0.16) !important;
 }
 
 .btn-start {
