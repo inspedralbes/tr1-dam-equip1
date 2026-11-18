@@ -16,21 +16,105 @@ const categories = [
 ];
 
 const questions = [
-  { text: "Quants quilòmetres de vasos sanguinis hi ha al cos humà?", answer: 100000, min: 10000, max: 200000, unit: "km" },
-  { text: "Quantes formigues hi ha al món (en milions de milions)?", answer: 20, min: 1, max: 100, unit: "milions de milions" },
-  { text: "Quantes finestres té l'Empire State Building?", answer: 6500, min: 1000, max: 15000, unit: "finestres" },
-  { text: "Quants quilòmetres mesura aproximadament l'equador terrestre?", answer: 40075, min: 10000, max: 100000, unit: "km" },
-  { text: "Quants metres d'alçada fa l'Everest?", answer: 8849, min: 5000, max: 15000, unit: "metres" },
-  { text: "Quants ossos té el cos humà d'un adult?", answer: 206, min: 50, max: 500, unit: "ossos" },
-  { text: "Quants països hi ha actualment al món reconeguts per l'ONU?", answer: 193, min: 50, max: 350, unit: "països" },
-  { text: "Quants dents té un ésser humà adult?", answer: 32, min: 10, max: 60, unit: "dents" },
-  { text: "A quina temperatura (ºC) es congela l'aigua?", answer: 0, min: -50, max: 50, unit: "ºC" },
+  {
+    text: "Quants quilòmetres de vasos sanguinis hi ha al cos humà?",
+    answer: 100000,
+    min: 10000,
+    max: 200000,
+    unit: "km",
+  },
+  {
+    text: "Quantes formigues hi ha al món (en milions de milions)?",
+    answer: 20,
+    min: 1,
+    max: 100,
+    unit: "milions de milions",
+  },
+  {
+    text: "Quantes finestres té l'Empire State Building?",
+    answer: 6500,
+    min: 1000,
+    max: 15000,
+    unit: "finestres",
+  },
+  {
+    text: "Quants quilòmetres mesura aproximadament l'equador terrestre?",
+    answer: 40075,
+    min: 10000,
+    max: 100000,
+    unit: "km",
+  },
+  {
+    text: "Quants metres d'alçada fa l'Everest?",
+    answer: 8849,
+    min: 5000,
+    max: 15000,
+    unit: "metres",
+  },
+  {
+    text: "Quants ossos té el cos humà d'un adult?",
+    answer: 206,
+    min: 50,
+    max: 500,
+    unit: "ossos",
+  },
+  {
+    text: "Quants països hi ha actualment al món reconeguts per l'ONU?",
+    answer: 193,
+    min: 50,
+    max: 350,
+    unit: "països",
+  },
+  {
+    text: "Quants dents té un ésser humà adult?",
+    answer: 32,
+    min: 10,
+    max: 60,
+    unit: "dents",
+  },
+  {
+    text: "A quina temperatura (ºC) es congela l'aigua?",
+    answer: 0,
+    min: -50,
+    max: 50,
+    unit: "ºC",
+  },
   { text: "Quants cors té un pop?", answer: 3, min: 1, max: 10, unit: "cors" },
-  { text: "Quants segons té una hora?", answer: 3600, min: 1000, max: 10000, unit: "segons" },
-  { text: "Quantes tecles té un piano estàndard?", answer: 88, min: 40, max: 120, unit: "tecles" },
-  { text: "Quants minuts triga la llum del Sol a arribar a la Terra?", answer: 8, min: 1, max: 30, unit: "minuts" },
-  { text: "Quantes potes té una aranya?", answer: 8, min: 2, max: 20, unit: "potes" },
-  { text: "Quants dies té un any de traspàs?", answer: 366, min: 300, max: 400, unit: "dies" },
+  {
+    text: "Quants segons té una hora?",
+    answer: 3600,
+    min: 1000,
+    max: 10000,
+    unit: "segons",
+  },
+  {
+    text: "Quantes tecles té un piano estàndard?",
+    answer: 88,
+    min: 40,
+    max: 120,
+    unit: "tecles",
+  },
+  {
+    text: "Quants minuts triga la llum del Sol a arribar a la Terra?",
+    answer: 8,
+    min: 1,
+    max: 30,
+    unit: "minuts",
+  },
+  {
+    text: "Quantes potes té una aranya?",
+    answer: 8,
+    min: 2,
+    max: 20,
+    unit: "potes",
+  },
+  {
+    text: "Quants dies té un any de traspàs?",
+    answer: 366,
+    min: 300,
+    max: 400,
+    unit: "dies",
+  },
 ];
 
 export function setupWebSocket(server) {
@@ -97,7 +181,9 @@ export function setupWebSocket(server) {
             totalRounds: totalRounds,
           }),
         );
-        console.log(`Sala ${roomId} creada per ${ws.name} (Max: ${maxPlayers}, Rondes: ${totalRounds})`);
+        console.log(
+          `Sala ${roomId} creada per ${ws.name} (Max: ${maxPlayers}, Rondes: ${totalRounds})`,
+        );
       }
 
       // 2. UNIR-SE A UNA SALA
@@ -155,6 +241,7 @@ export function setupWebSocket(server) {
             name: finalName,
             players: room.players,
             totalRounds: room.totalRounds,
+            maxPlayers: room.maxPlayers,
           }),
         );
 
@@ -199,7 +286,10 @@ export function setupWebSocket(server) {
             totalPlayers: room.players.length,
           }),
         );
-        console.log(`Votació de categories a sala ${ws.roomId}:`, room.categories);
+        console.log(
+          `Votació de categories a sala ${ws.roomId}:`,
+          room.categories,
+        );
       }
 
       // 4. VOTAR CATEGORIA
@@ -378,7 +468,9 @@ function finishCategoryVote(room) {
   const winningCat =
     tiedCategories.length > 0
       ? tiedCategories[Math.floor(Math.random() * tiedCategories.length)]
-      : (room.categories && room.categories.length > 0 ? room.categories[0] : "");
+      : room.categories && room.categories.length > 0
+        ? room.categories[0]
+        : "";
 
   room.selectedCategory = winningCat;
 
