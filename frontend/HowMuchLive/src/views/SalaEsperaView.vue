@@ -15,11 +15,7 @@ const game = useGameStore();
 
 const copiat = ref(false);
 
-const esHost = computed(
-  () =>
-    Array.isArray(room.participants) &&
-    room.participants.some((p) => p.nom === player.nom && p.esHost),
-);
+const esHost = computed(() => room.esHost);
 
 async function copiarCodi() {
   try {

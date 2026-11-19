@@ -10,9 +10,9 @@ export const CONFIG_PER_DEFECTE = {
 
 function convertirParticipants(llista) {
   return llista.map((p, i) => ({
+    id: p.id,
     nom: p.name,
-    // l'amfitrió és el primer de la llista
-    esHost: p.isHost ?? i === 0
+    esHost: p.isHost !== undefined ? p.isHost : (i === 0)
   }))
 }
 
@@ -26,7 +26,7 @@ export const useRoomStore = defineStore('room', () => {
   const nomEnSala = ref('')
 
   function entrarSala(missatge) {
-    esHost.value = missatge.isHost
+    esHost.value = Boolean(missatge.isHost)
     nomEnSala.value = missatge.name ?? usePlayerStore().nom
     participants.value = convertirParticipants(missatge.players)
     codi.value = String(missatge.roomId)
@@ -36,7 +36,9 @@ export const useRoomStore = defineStore('room', () => {
     participants.value = convertirParticipants(llista)
 
     const jo = participants.value.find((p) => p.nom === nomEnSala.value)
-    esHost.value = jo ? jo.esHost : false
+    if (jo && jo.esHost !== undefined) {
+      esHost.value = jo.esHost
+    }
   }
 
   function sortir() {

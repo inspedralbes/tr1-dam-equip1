@@ -29,71 +29,81 @@ watch(
 </script>
 
 <template>
-  <div class="pregunta-root">
-    <!-- TOP HEADER -->
-    <div class="top-bar">
-      <div class="nom-header">
+  <div class="pregunta-root d-flex flex-column">
+    <v-container class="panel d-flex flex-column pa-0">
+      <!-- TOP HEADER / BADGE DE RONDA -->
+      <div class="ronda-badge">
         Ronda {{ game.ronda }} de {{ game.totalRondes }}
       </div>
 
-      <!-- Opcional: Botón siguiente o estado de respuestas -->
-      <div class="timer-box" v-if="game.segonsRestants !== null">
-        <span class="timer-text">{{ game.segonsRestants }}s</span>
-      </div>
-    </div>
-
-    <!-- PANEL PRINCIPAL -->
-    <div class="panel">
-      <!-- Badge de ronda / estado -->
-      <div class="ronda-badge">
-        Han respost {{ game.respostes?.length || 0 }} de
-        {{ game.totalJugadors }} jugadors
+      <!-- TIMER BOX -->
+      <div v-if="game.segonsRestants !== null" class="timer-box">
+        <span class="timer-text"
+          >Temps restant: {{ game.segonsRestants }} s</span
+        >
       </div>
 
-      <!-- Tarjeta de la pregunta -->
-      <div class="pregunta-card">
+      <!-- PREGUNTA CARD -->
+      <div class="pregunta-card elevation-0">
         <div class="pregunta-text">{{ game.pregunta }}</div>
       </div>
 
-      <!-- SLIDER DE RESPUESTA -->
-      <div v-if="hiHaRang" class="slider-box">
-        <!-- Valor estimado seleccionado -->
-        <div class="estimacio-label">
-          {{ valor.toLocaleString("ca-ES") }} {{ game.unitat || "" }}
-        </div>
-
-        <div class="slider-row" style="margin-top: 20px; width: 100%">
+      <!-- SLIDER / CONTROLES DE RESPUESTA -->
+      <div v-if="hiHaRang" class="slider-box d-flex flex-column">
+        <div class="slider-row">
           <span class="val-label-min">{{
-            game.minim.toLocaleString("ca-ES")
+            game.minim?.toLocaleString("ca-ES")
           }}</span>
-
-          <input
-            type="range"
-            v-model.number="valor"
+          <v-slider
+            v-model="valor"
             :min="game.minim"
             :max="game.maxim"
             :step="1"
             :disabled="enviada"
-            class="pregunta-slider-input"
+            hide-details
+            class="pregunta-slider"
           />
-
           <span class="val-label-max">{{
-            game.maxim.toLocaleString("ca-ES")
+            game.maxim?.toLocaleString("ca-ES")
           }}</span>
         </div>
 
-        <!-- Botón Enviar -->
-        <button class="btn-submit" :disabled="enviada" @click="enviarResposta">
+        <div class="estimacio-label">
+          La teva resposta: {{ valor.toLocaleString("ca-ES") }}
+          {{ game.unitat }}
+        </div>
+
+        <v-btn
+          class="btn-submit"
+          :disabled="enviada"
+          @click="enviarResposta"
+          flat
+        >
           {{ enviada ? "Resposta enviada" : "Enviar resposta" }}
-        </button>
+        </v-btn>
       </div>
 
-      <div v-else class="pregunta-card" style="margin-top: 20px">
-        <div class="pregunta-text" style="font-size: 18px; color: #f43f5e">
+      <div v-else class="text-center mt-6">
+        <p class="text-white">
           El servidor no ha enviat el rang de la pregunta.
-        </div>
+        </p>
       </div>
-    </div>
+
+      <!-- LISTA DE JUGADORES QUE HAN RESPONDIDO -->
+      <div class="posicions-card align-self-center mt-8">
+        <div class="posicions-title">
+          Han respost {{ game.respostes.length }} de {{ game.totalJugadors }}
+        </div>
+        <v-list bg-color="transparent" class="pa-0">
+          <v-list-item
+            v-for="r in game.respostes"
+            :key="r.id"
+            :title="r.nom"
+            class="posicio-item pa-0"
+          />
+        </v-list>
+      </div>
+    </v-container>
   </div>
 </template>
 
@@ -104,14 +114,10 @@ watch(
 }
 
 .pregunta-root {
-  display: flex;
-  flex-direction: column;
   flex-grow: 1;
-  min-height: 100vh;
   background-color: #181b22;
-  padding: 25px;
-  box-sizing: border-box;
-  align-items: center;
+  padding: 15px 25px;
+  min-height: 100vh;
 }
 
 /* TOP HEADER */
@@ -119,11 +125,10 @@ watch(
   display: flex;
   flex-direction: row;
   align-items: center;
-  justify-content: space-between;
   width: 100%;
-  max-width: 880px;
   height: 50px;
-  padding: 0 10px;
+  padding-left: 10px;
+  padding-right: 10px;
   margin-bottom: 6px;
 }
 
@@ -133,13 +138,25 @@ watch(
   font-weight: bold;
 }
 
+.btn-next {
+  background-color: #00bfa5;
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: bold;
+  border-radius: 8px;
+  padding-left: 22px;
+  padding-right: 22px;
+  height: 42px;
+  border: none;
+}
+
+.btn-next:hover {
+  background-color: #00a892;
+}
+
 .panel {
-  display: flex;
-  flex-direction: column;
   flex-grow: 1;
   width: 100%;
-  max-width: 880px;
-  align-items: center;
 }
 
 /* PREGUNTA PANEL */
@@ -150,34 +167,46 @@ watch(
   border: 1px solid #333a4a;
   border-radius: 6px;
   padding: 4px 14px;
+  align-self: center;
   margin-top: 2px;
-  margin-bottom: 16px;
+  margin-bottom: 8px;
   font-weight: bold;
 }
 
 .pregunta-card {
-  width: 100%;
+  width: 88%;
   min-height: 90px;
   background-color: #242834;
   border-radius: 12px;
   border: 1px solid #333a4a;
+  align-self: center;
   display: flex;
   justify-content: center;
   align-items: center;
   padding: 18px 28px;
-  box-sizing: border-box;
-  text-align: center;
 }
 
 .pregunta-text {
   font-size: 24px;
   color: #ffffff;
   font-weight: bold;
-  line-height: 1.4;
+  text-align: center;
+  white-space: normal;
+}
+
+.correct-text {
+  font-size: 19px;
+  color: #00bfa5;
+  font-weight: bold;
+  text-align: center;
+  margin-top: 8px;
 }
 
 .timer-box {
-  margin-top: 0;
+  align-self: flex-end;
+  margin-right: 6%;
+  margin-top: 10px;
+  min-height: 25px;
 }
 
 .timer-text {
@@ -185,15 +214,14 @@ watch(
   color: #f43f5e;
   background-color: #2b1d24;
   border: 1px solid #f43f5e;
-  padding: 6px 14px;
+  padding: 4px 14px;
   border-radius: 6px;
   font-weight: bold;
 }
 
 .slider-box {
-  width: 100%;
-  display: flex;
-  flex-direction: column;
+  width: 80%;
+  align-self: center;
   margin-top: 35px;
   align-items: center;
 }
@@ -211,29 +239,12 @@ watch(
   font-size: 20px;
   color: #94a3b8;
   font-weight: bold;
-  margin: 0 18px;
+  margin-left: 18px;
+  margin-right: 18px;
 }
 
-/* Estilo web adaptado para el slider nativo */
-.pregunta-slider-input {
-  width: 100%;
-  max-width: 540px;
-  height: 16px;
-  background: #1d212b;
-  border-radius: 8px;
-  border: 1px solid #333a4a;
-  outline: none;
-  appearance: none;
-  cursor: pointer;
-}
-
-.pregunta-slider-input::-webkit-slider-thumb {
-  appearance: none;
-  width: 20px;
-  height: 40px;
-  background-color: #00bfa5;
-  border-radius: 4px;
-  cursor: pointer;
+.pregunta-slider {
+  width: 540px;
 }
 
 .estimacio-label {
@@ -244,31 +255,51 @@ watch(
   border-radius: 8px;
   padding: 8px 24px;
   font-weight: bold;
-  margin-top: 10px;
-  margin-bottom: 10px;
+  margin-top: 20px;
+  text-align: center;
 }
 
 .btn-submit {
   min-width: 190px;
-  height: 46px;
-  padding: 0 24px;
-  background-color: #00bfa5;
-  color: #ffffff;
+  height: 46px !important;
+  padding-left: 24px;
+  padding-right: 24px;
+  background-color: #00bfa5 !important;
+  color: #ffffff !important;
   font-size: 16px;
   font-weight: bold;
   border-radius: 8px;
-  margin-top: 25px;
-  border: none;
-  cursor: pointer;
-  transition: background-color 0.2s;
+  margin-top: 18px;
+  box-shadow: none !important;
 }
 
-.btn-submit:hover:not(:disabled) {
-  background-color: #00a892;
+.btn-submit:hover {
+  background-color: #00a892 !important;
 }
 
-.btn-submit:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
+/* RESPOSTA PANEL & SCALE */
+.posicions-card {
+  width: 400px;
+  background-color: #242834;
+  border-radius: 12px;
+  border: 1px solid #333a4a;
+  padding: 16px 20px;
+}
+
+.posicions-title {
+  font-size: 16px;
+  color: #ffffff;
+  font-weight: bold;
+  text-align: center;
+  margin-bottom: 12px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #333a4a;
+}
+
+.posicio-item {
+  font-size: 15px;
+  color: #cbd5e1;
+  font-weight: bold;
+  margin-bottom: 4px;
 }
 </style>

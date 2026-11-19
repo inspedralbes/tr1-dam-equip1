@@ -6,7 +6,7 @@ import VotacioCategoriesView from '@/views/VotacioCategoriesView.vue'
 import PreguntaView from '@/views/PreguntaView.vue'
 import ResultatsRondaView from '@/views/ResultatsRondaView.vue'
 import FinalPartidaView from '@/views/FinalPartidaView.vue'
-
+import AdminView from '@/views/AdminView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -41,8 +41,11 @@ const router = createRouter({
       name: 'final',
       component: FinalPartidaView,
     },
-
-
+    {
+      path: '/admin',
+      name: 'admin',
+      component: AdminView,
+    },
   ],
 })
 

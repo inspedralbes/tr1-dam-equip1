@@ -172,6 +172,12 @@ watch(
         <v-btn class="primary-btn" @click="unirse">Unir-se</v-btn>
       </div>
 
+      <div class="admin-access-row">
+        <v-btn variant="text" size="small" class="admin-nav-btn" @click="router.push({ name: 'admin' })">
+          ⚙️ Panell d'Administració
+        </v-btn>
+      </div>
+
       <v-dialog v-model="dialogCrear" max-width="500" class="index-dialog">
         <v-card title="Crear sala">
           <v-card-text>
@@ -304,6 +310,24 @@ watch(
   border: 0;
 }
 
+.admin-access-row {
+  margin-top: 20px;
+  text-align: center;
+  border-top: 1px solid #333a4a;
+  padding-top: 14px;
+}
+
+.admin-nav-btn {
+  color: #94a3b8 !important;
+  font-size: 13px !important;
+  text-transform: none;
+}
+
+.admin-nav-btn:hover {
+  color: #00bfa5 !important;
+  background: rgba(0, 191, 165, 0.08);
+}
+
 .index-page {
   width: 100%;
   max-width: none !important;
@@ -377,4 +401,3 @@ watch(
   margin-top: 8px;
 }
 </style>
-
