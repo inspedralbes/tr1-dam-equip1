@@ -1,121 +1,12 @@
 import { WebSocketServer, WebSocket } from "ws";
+// Capa de dades (MariaDB): les categories i les preguntes ara surten de la BD
+import partidesRepo from "../bdd/data/partidesRepo.js";
+import preguntesRepo from "../bdd/data/preguntesRepo.js";
+import errors from "../bdd/utils/errors.js";
 
 const rooms = new Map();
 let nextClientId = 1;
 let wss;
-
-const categories = [
-  "Ciència i Natura",
-  "Història",
-  "Geografia",
-  "Esports",
-  "Cinema i Sèries",
-  "Música",
-  "Art i Literatura",
-  "Tecnologia",
-];
-
-const questions = [
-  {
-    text: "Quants quilòmetres de vasos sanguinis hi ha al cos humà?",
-    answer: 100000,
-    min: 10000,
-    max: 200000,
-    unit: "km",
-  },
-  {
-    text: "Quantes formigues hi ha al món (en milions de milions)?",
-    answer: 20,
-    min: 1,
-    max: 100,
-    unit: "milions de milions",
-  },
-  {
-    text: "Quantes finestres té l'Empire State Building?",
-    answer: 6500,
-    min: 1000,
-    max: 15000,
-    unit: "finestres",
-  },
-  {
-    text: "Quants quilòmetres mesura aproximadament l'equador terrestre?",
-    answer: 40075,
-    min: 10000,
-    max: 100000,
-    unit: "km",
-  },
-  {
-    text: "Quants metres d'alçada fa l'Everest?",
-    answer: 8849,
-    min: 5000,
-    max: 15000,
-    unit: "metres",
-  },
-  {
-    text: "Quants ossos té el cos humà d'un adult?",
-    answer: 206,
-    min: 50,
-    max: 500,
-    unit: "ossos",
-  },
-  {
-    text: "Quants països hi ha actualment al món reconeguts per l'ONU?",
-    answer: 193,
-    min: 50,
-    max: 350,
-    unit: "països",
-  },
-  {
-    text: "Quants dents té un ésser humà adult?",
-    answer: 32,
-    min: 10,
-    max: 60,
-    unit: "dents",
-  },
-  {
-    text: "A quina temperatura (ºC) es congela l'aigua?",
-    answer: 0,
-    min: -50,
-    max: 50,
-    unit: "ºC",
-  },
-  { text: "Quants cors té un pop?", answer: 3, min: 1, max: 10, unit: "cors" },
-  {
-    text: "Quants segons té una hora?",
-    answer: 3600,
-    min: 1000,
-    max: 10000,
-    unit: "segons",
-  },
-  {
-    text: "Quantes tecles té un piano estàndard?",
-    answer: 88,
-    min: 40,
-    max: 120,
-    unit: "tecles",
-  },
-  {
-    text: "Quants minuts triga la llum del Sol a arribar a la Terra?",
-    answer: 8,
-    min: 1,
-    max: 30,
-    unit: "minuts",
-  },
-  {
-    text: "Quantes potes té una aranya?",
-    answer: 8,
-    min: 2,
-    max: 20,
-    unit: "potes",
-  },
-  {
-    text: "Quants dies té un any de traspàs?",
-    answer: 366,
-    min: 300,
-    max: 400,
-    unit: "dies",
-  },
-];
 
 export function setupWebSocket(server) {
   wss = server
@@ -128,7 +19,7 @@ export function setupWebSocket(server) {
     ws.name = null;
     ws.isHost = false;
 
-    ws.on("message", (raw) => {
+    ws.on("message", async (raw) => {
       let msg;
       try {
         msg = JSON.parse(raw.toString());
@@ -141,17 +32,29 @@ export function setupWebSocket(server) {
       if (msg.type === "createRoom") {
         leaveRoom(ws);
 
-        // Codi de 5 dígits
-        const roomId = Math.floor(10000 + Math.random() * 90000);
-        ws.roomId = roomId;
-        ws.name = (msg.name || `Jugador ${ws.id}`).trim();
-        ws.isHost = true;
-
+        const name = (msg.name || `Jugador ${ws.id}`).trim();
         const maxPlayers = Number(msg.maxPlayers) || 10;
         const totalRounds = Number(msg.totalRounds) || 5;
 
+        // Es crea la partida a la BD, i la BD dona el codi de 5 dígits (únic)
+        let partida;
+        try {
+          partida = await partidesRepo.crearPartida(totalRounds, maxPlayers, name);
+        } catch (error) {
+          enviarErrorBD(ws, error);
+          return;
+        }
+
+        const roomId = Number(partida.codi);
+        ws.roomId = roomId;
+        ws.name = name;
+        ws.isHost = true;
+
         const room = {
           id: roomId,
+          partidaId: partida.partidaId, // id de la partida a la BD
+          participantIds: { [ws.id]: partida.participantId }, // id del jugador -> id a la BD
+          rondaId: null,
           hostId: ws.id,
           state: "LOBBY",
           players: [{ id: ws.id, name: ws.name, score: 0 }],
@@ -225,6 +128,19 @@ export function setupWebSocket(server) {
           finalName = `${requestedName} (${count})`;
         }
 
+        // A la BD (transacció): comprova que la partida encara accepta jugadors i l'afegeix
+        try {
+          room.participantIds[ws.id] = await partidesRepo.unirParticipant(
+            room.partidaId,
+            finalName,
+            requestedName,
+          );
+        } catch (error) {
+          enviarErrorBD(ws, error);
+          return;
+        }
+        if (!rooms.has(roomId)) return; // la sala s'ha tancat mentre esperàvem la BD
+
         ws.roomId = roomId;
         ws.name = finalName;
         ws.isHost = room.hostId === ws.id;
@@ -275,8 +191,14 @@ export function setupWebSocket(server) {
         room.categoryVotes = {};
         room.selectedCategory = null;
 
-        const shuffled = [...categories].sort(() => 0.5 - Math.random());
-        room.categories = shuffled.slice(0, 4);
+        // 4 categories a l'atzar de la BD, i la partida passa a 'en_curs' (ja no hi pot entrar ningú)
+        try {
+          room.categories = await preguntesRepo.categoriesAleatories(4);
+          await partidesRepo.iniciarPartida(room.partidaId);
+        } catch (error) {
+          enviarErrorBD(ws, error);
+          return;
+        }
 
         broadcastToRoom(
           ws.roomId,
@@ -337,6 +259,15 @@ export function setupWebSocket(server) {
           );
           return;
         }
+
+        // Es desa a la BD (transacció). Dona error si ja havia respost o si la ronda s'ha tancat
+        try {
+          await partidesRepo.respondre(room.rondaId, room.participantIds[ws.id], val);
+        } catch (error) {
+          enviarErrorBD(ws, error);
+          return;
+        }
+        if (room.state !== "VOTING") return; // la ronda s'ha tancat mentre es desava
 
         room.answers[ws.id] = val;
         room.answersOrder.push(ws.id);
@@ -409,6 +340,22 @@ export function setupWebSocket(server) {
         const room = rooms.get(ws.roomId);
         if (!room) return;
         if (room.hostId !== ws.id) return;
+
+        // A la BD és una partida nova, amb el mateix codi i els mateixos jugadors
+        try {
+          const nova = await partidesRepo.reiniciarPartida(
+            room.partidaId,
+            room.players.map((p) => p.name),
+          );
+          room.partidaId = nova.partidaId;
+          room.participantIds = {};
+          for (const p of room.players) {
+            room.participantIds[p.id] = nova.participantIds[p.name];
+          }
+        } catch (error) {
+          enviarErrorBD(ws, error);
+          return;
+        }
 
         room.round = 0;
         room.usedQuestions = [];
@@ -490,17 +437,32 @@ function finishCategoryVote(room) {
   }, 3500);
 }
 
-function startNextQuestion(room) {
+async function startNextQuestion(room) {
   room.round++;
   if (room.round > room.totalRounds) {
     finishGame(room);
     return;
   }
 
-  const pool = questions.filter((q) => !room.usedQuestions.includes(q.text));
-  const qList = pool.length > 0 ? pool : questions;
-  const q = qList[Math.floor(Math.random() * qList.length)];
-  room.usedQuestions.push(q.text);
+  // La pregunta surt de la BD: de la categoria votada i sense repetir dins la partida
+  let ronda;
+  try {
+    ronda = await partidesRepo.obrirRonda(room.partidaId, room.round, room.selectedCategory);
+  } catch (error) {
+    logErrorBD(error);
+    broadcastToRoom(
+      room.id,
+      JSON.stringify({ type: "error", message: "No s'ha pogut carregar la pregunta" }),
+    );
+    return;
+  }
+  const q = ronda.pregunta;
+  room.rondaId = ronda.rondaId;
+
+  // El rang del slider es calcula ara (no es desa a la BD)
+  const rang = calcularRang(q.answer, q.unit);
+  q.min = rang.min;
+  q.max = rang.max;
 
   room.currentQuestion = q;
   room.state = "VOTING";
@@ -580,6 +542,16 @@ function finishRound(room) {
     }
   }
 
+  // Desem a la BD la posició i els punts de cada resposta i tanquem la ronda (transacció)
+  const puntuacions = results
+    .filter((r) => r.estimate !== null)
+    .map((r, i) => ({
+      participantId: room.participantIds[r.id],
+      posicio: i + 1,
+      punts: r.roundPoints,
+    }));
+  partidesRepo.tancarRonda(room.rondaId, puntuacions).catch(logErrorBD);
+
   const ranking = [...room.players].sort((a, b) => b.score - a.score);
 
   broadcastToRoom(
@@ -604,6 +576,8 @@ function finishGame(room) {
   room.state = "GAME_OVER";
   const ranking = [...room.players].sort((a, b) => b.score - a.score);
 
+  partidesRepo.acabarPartida(room.partidaId).catch(logErrorBD);
+
   broadcastToRoom(
     room.id,
     JSON.stringify({
@@ -625,13 +599,22 @@ function leaveRoom(ws) {
     delete room.categoryVotes[ws.id];
   }
 
+  // A la BD: si encara som a la sala d'espera, el traiem de la partida
+  if (room.state === "LOBBY" && room.participantIds[ws.id]) {
+    partidesRepo.treureParticipant(room.participantIds[ws.id]).catch(logErrorBD);
+  }
+
   if (room.players.length === 0) {
     if (room.countdownInterval) clearInterval(room.countdownInterval);
     rooms.delete(ws.roomId);
+    partidesRepo.abandonarPartida(room.partidaId).catch(logErrorBD);
     console.log(`Sala ${ws.roomId} eliminada`);
   } else {
     if (room.hostId === ws.id && room.players.length > 0) {
       room.hostId = room.players[0].id;
+      partidesRepo
+        .canviarAmfitrio(room.partidaId, room.participantIds[room.hostId])
+        .catch(logErrorBD);
     }
     broadcastToRoom(
       ws.roomId,
@@ -653,6 +636,46 @@ function broadcastToRoom(roomId, message) {
       client.send(message);
     }
   });
+}
+
+// Rang del slider: es calcula a l'atzar cada cop que surt una pregunta (no es desa a la BD),
+// perquè si torna a sortir en una altra partida la resposta no estigui al mateix lloc.
+// Sempre conté la resposta correcta.
+function calcularRang(correcta, unitat) {
+  let amplada;
+  if (unitat === "any") {
+    amplada = 100 + Math.floor(Math.random() * 301); // anys: un marge d'entre 100 i 400 anys
+  } else {
+    amplada = Math.max(10, Math.round(Math.abs(correcta) * (1 + Math.random() * 2))); // entre 1 i 3 cops el valor
+  }
+  const posicio = 0.1 + Math.random() * 0.8; // la resposta cau entre el 10% i el 90% del slider
+  let min = Math.round(correcta - amplada * posicio);
+  let max = min + amplada;
+  // si la resposta és positiva, que el slider no comenci en negatiu
+  if (correcta > 0 && min < 0) {
+    max = max - min;
+    min = 0;
+  }
+  return { min, max };
+}
+
+// Errors de la BD: si és un error del joc (AppError) el missatge es pot ensenyar al client
+function enviarErrorBD(ws, error) {
+  if (!(error instanceof errors.AppError)) logErrorBD(error);
+  ws.send(
+    JSON.stringify({
+      type: "error",
+      message:
+        error instanceof errors.AppError
+          ? error.message
+          : "Error de la base de dades, torna-ho a provar",
+    }),
+  );
+}
+
+function logErrorBD(error) {
+  const { titol, solucio } = errors.explicarError(error);
+  console.error(`[BD] ${titol} -> ${solucio}`);
 }
 
 if (process.argv[1] && process.argv[1].endsWith("server.js")) {

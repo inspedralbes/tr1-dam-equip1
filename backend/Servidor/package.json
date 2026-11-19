@@ -4,11 +4,17 @@
   "type": "module",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js"
+    "start": "node index.js",
+    "dev": "node --env-file-if-exists=.env index.js",
+    "importar": "node --env-file-if-exists=.env bdd/scripts/importar.js",
+    "exportar": "node --env-file-if-exists=.env bdd/scripts/exportar.js"
   },
   "dependencies": {
     "cors": "^2.8.5",
+    "csv-stringify": "^6.5.2",
     "express": "^4.21.2",
+    "mysql2": "^3.11.5",
+    "sequelize": "^6.37.5",
     "ws": "^8.23.0"
   }
 }

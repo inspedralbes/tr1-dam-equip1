@@ -1,0 +1,37 @@
+[
+  {
+    "categoria": "Ciència i Natura",
+    "enunciat": "Quants litres de sang té aproximadament una persona adulta?",
+    "resposta": 5,
+    "unitat": "litres"
+  },
+  {
+    "categoria": "Geografia",
+    "enunciat": "Quants quilòmetres de costa té Catalunya aproximadament?",
+    "resposta": 580,
+    "unitat": "km"
+  },
+  {
+    "categoria": "Videojocs",
+    "enunciat": "En quin any va sortir el primer Super Mario Bros?",
+    "resposta": 1985,
+    "unitat": "any"
+  },
+  {
+    "categoria": "Esports",
+    "enunciat": "",
+    "resposta": 10,
+    "unitat": "gols"
+  },
+  {
+    "categoria": "Música",
+    "enunciat": "Quantes cordes té un baix elèctric normal?",
+    "resposta": "quatre",
+    "unitat": "cordes"
+  },
+  {
+    "categoria": "Història",
+    "enunciat": "En quin any es va inventar la impremta de Gutenberg?",
+    "resposta": 1450
+  }
+]

@@ -2,6 +2,7 @@ import express from "express";
 import http from "http";
 import cors from "cors";
 import { setupWebSocket } from "./ws/server.js";
+import apiRouter from "./api/rest.js";
 
 const app = express();
 const server = http.createServer(app);
@@ -13,6 +14,9 @@ app.use(express.json());
 app.get("/", (req, res) => {
   res.send("Servidor HOW MUCH?! LIVE funcionant correctament.");
 });
+
+// API REST de la base de dades (banc de preguntes, partides, CSV, estadístiques)
+app.use("/api", apiRouter);
 
 // Inicialitzem el WebSocket server sobre el mateix servidor HTTP
 setupWebSocket(server);

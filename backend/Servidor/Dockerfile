@@ -8,6 +8,8 @@ RUN npm ci --omit=dev
 
 COPY index.js ./
 COPY ws ./ws
+COPY api ./api
+COPY bdd ./bdd
 
 ENV PORT=3000
 EXPOSE 3000

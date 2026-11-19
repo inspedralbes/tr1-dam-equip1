@@ -1,20 +1,56 @@
-# HOW MUCH?! LIVE · servidor de proves (pre-producció, sense base de dades)
+# HOW MUCH?! LIVE · servidor + base de dades + nginx
 #
 #   Aixecar:      docker compose up -d --build      (des de la carpeta docker/)
 #   Estat:        docker compose ps
 #   Logs:         docker compose logs -f servidor
 #   Aturar:       docker compose down
+#   BD de zero:   docker compose down -v   (esborra el volum i torna a carregar els .sql)
 #
 # Només nginx surt a fora (port 8090). El servidor de Node no té ports publicats:
 # s'hi arriba sempre a través de nginx, pel nom del servei "servidor".
+# MariaDB només s'obre a 127.0.0.1 (per fer proves des del teu PC amb npm run dev o HeidiSQL).
+#
+# Contrasenyes: les de per defecte són de desenvolupament. A producció posa-les
+# en un fitxer docker/.env (DB_PASSWORD=..., DB_ROOT_PASSWORD=...).
 
 name: howmuch-live
 
 services:
+  mariadb:
+    image: mariadb:11.4
+    environment:
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-rootpass}
+      MARIADB_DATABASE: howmuch_live
+      MARIADB_USER: ${DB_USER:-nodeuser}
+      MARIADB_PASSWORD: ${DB_PASSWORD:-nodepass}
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    volumes:
+      - db_data:/var/lib/mysql
+      # Només s'executen el PRIMER cop (amb el volum buit), per ordre alfabètic
+      - ../database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ../database/dades-inicials.sql:/docker-entrypoint-initdb.d/02-dades-inicials.sql:ro
+    ports:
+      - "127.0.0.1:${DB_PORT:-3306}:3306"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+
   servidor:
     build: ../backend/Servidor
     environment:
       PORT: 3000
+      DB_HOST: mariadb          # el nom del servei, no localhost
+      DB_PORT: 3306
+      DB_USER: ${DB_USER:-nodeuser}
+      DB_PASSWORD: ${DB_PASSWORD:-nodepass}
+      DB_NAME: howmuch_live
+    depends_on:
+      mariadb:
+        condition: service_healthy
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:3000/"]
@@ -32,3 +68,6 @@ services:
       servidor:
         condition: service_healthy
     restart: unless-stopped
+
+volumes:
+  db_data:
