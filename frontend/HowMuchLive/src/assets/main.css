@@ -45,17 +45,86 @@ html,
 body {
   margin: 0;
   min-height: 100vh;
-  background-color: var(--hm-bg);
   color: var(--hm-text);
   font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 
-/* Vuetify posa el seu propi fons: el forcem al de l'app */
+/* fons amb una mica de llum turquesa a dalt, així no queda tan pla */
+html {
+  background:
+    radial-gradient(ellipse at top, rgba(0, 191, 165, 0.12), transparent 60%),
+    var(--hm-bg);
+  background-attachment: fixed;
+}
+
+body,
 .v-application,
 .v-application__wrap {
-  background-color: var(--hm-bg) !important;
+  background: transparent !important;
   min-height: 100vh;
+}
+
+::selection {
+  background: var(--hm-primary);
+  color: #fff;
+}
+
+/* Targetes amb una mica d'ombra perquè destaquin del fons */
+.hm-card,
+.index-card,
+.lobby-card,
+.cat-box,
+.pregunta-card {
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35) !important;
+}
+
+/* Botons: transició suau i petit salt en passar el ratolí */
+.v-btn {
+  transition: transform 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease !important;
+}
+
+.v-btn:not(.v-btn--disabled):not(.v-btn--variant-text):hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(0, 191, 165, 0.2) !important;
+}
+
+/* Els diàlegs es veien transparents i es llegia el formulari de darrere */
+.v-overlay__content > .v-card {
+  background: var(--hm-card) !important;
+  border: 1px solid var(--hm-border);
+  border-radius: var(--hm-radius) !important;
+  color: var(--hm-text);
+}
+
+.v-overlay__scrim {
+  background: #000 !important;
+  opacity: 0.6 !important;
+}
+
+/* Canvi de pantalla (App.vue). Només entrada: si la vista nova es munta tard
+   es perd algun missatge del servidor (ens va passar amb el mode out-in) */
+.fade-enter-active {
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.fade-enter-from {
+  opacity: 0;
+  transform: translateY(8px);
+}
+
+/* Scroll fosc */
+::-webkit-scrollbar {
+  width: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--hm-border);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
 }
 
 /* Contenidor de pàgina centrat, per reutilitzar a les vistes */

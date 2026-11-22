@@ -75,10 +75,17 @@ watch(
 
       <v-list class="players-scroll" density="comfortable">
         <v-list-item v-for="p in room.participants" :key="p.nom" class="player-item" :title="p.nom"
-          :subtitle="p.esHost ? 'Amfitrió' : undefined" />
+          :subtitle="p.esHost ? 'Amfitrió' : undefined">
+          <template #prepend>
+            <div class="avatar" :class="{ host: p.esHost }">{{ p.nom?.charAt(0).toUpperCase() }}</div>
+          </template>
+        </v-list-item>
       </v-list>
 
-      <v-btn @click="sortir">Sortir</v-btn>
+      <div class="footer-row">
+        <v-btn class="btn-sortir" variant="outlined" @click="sortir">Sortir</v-btn>
+        <span v-if="!esHost" class="espera">Esperant que l'amfitrió iniciï la partida…</span>
+      </div>
     </v-card>
   </v-container>
 </template>
@@ -86,7 +93,7 @@ watch(
 <style scoped>
 :deep(body),
 :deep(.v-application) {
-  background: #181b22 !important;
+  background: transparent !important;
 }
 
 .lobby-page {
@@ -94,13 +101,12 @@ watch(
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #181b22;
+  background: transparent;
   padding: 30px;
 }
 
 .lobby-card {
   width: min(860px, 100%);
-  min-height: 580px;
   background: #242834 !important;
   border: 1px solid #333a4a;
   border-radius: 12px;
@@ -203,6 +209,49 @@ watch(
 
 :deep(.player-item .v-list-item-subtitle) {
   color: #94a3b8;
+}
+
+.avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  margin-right: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  background: #333a4a;
+  color: #fff;
+}
+
+.avatar.host {
+  background: var(--hm-primary);
+}
+
+.footer-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 20px;
+}
+
+.btn-sortir {
+  color: var(--hm-text-muted) !important;
+  border-color: #333a4a !important;
+  text-transform: none;
+  border-radius: 8px;
+}
+
+.espera {
+  color: var(--hm-text-muted);
+  font-size: 14px;
+  animation: parpelleig 1.6s ease-in-out infinite;
+}
+
+@keyframes parpelleig {
+  50% {
+    opacity: 0.4;
+  }
 }
 
 :deep(.v-list-item:hover) {

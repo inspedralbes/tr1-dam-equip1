@@ -61,6 +61,7 @@ watch(
             :step="1"
             :disabled="enviada"
             hide-details
+            color="primary"
             class="pregunta-slider"
           />
           <span class="val-label-max">{{
@@ -110,14 +111,15 @@ watch(
 <style scoped>
 :root {
   flex-grow: 1;
-  background-color: #181b22;
+  background-color: transparent;
 }
 
 .pregunta-root {
   flex-grow: 1;
-  background-color: #181b22;
+  background-color: transparent;
   padding: 15px 25px;
   min-height: 100vh;
+  justify-content: center;
 }
 
 /* TOP HEADER */
@@ -155,7 +157,8 @@ watch(
 }
 
 .panel {
-  flex-grow: 1;
+  flex-grow: 0;
+  max-width: 960px;
   width: 100%;
 }
 

@@ -143,7 +143,8 @@ watch(
 <template>
   <v-container class="index-page">
     <div class="index-card">
-      <h2 class="index-title">HowMuch?LIVE</h2>
+      <h2 class="index-title">HowMuch?<span class="live">LIVE</span></h2>
+      <p class="index-sub">Endevina la xifra. Qui s'acosti més, guanya.</p>
 
       <v-text-field
         class="index-field"
@@ -201,7 +202,7 @@ watch(
           <v-card-actions>
             <v-spacer />
             <v-btn @click="dialogCrear = false">Cancel·lar</v-btn>
-            <v-btn @click="crearSala">Crear</v-btn>
+            <v-btn color="primary" variant="flat" @click="crearSala">Crear</v-btn>
           </v-card-actions>
         </v-card>
         <p v-if="errorCrear" class="text-error mt-2">{{ errorCrear }}</p>
@@ -219,7 +220,7 @@ watch(
 
 .index-page {
   min-height: 100vh;
-  background-color: #181b22;
+  background-color: transparent;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -241,7 +242,19 @@ watch(
   color: #ffffff;
   font-weight: 700;
   text-align: center;
-  margin: 0 0 22px;
+  margin: 0 0 4px;
+}
+
+.live {
+  color: var(--hm-primary);
+  margin-left: 4px;
+}
+
+.index-sub {
+  text-align: center;
+  color: var(--hm-text-muted);
+  margin: 0 0 24px;
+  font-size: 14px;
 }
 
 .welcome-message {
@@ -332,7 +345,7 @@ watch(
   width: 100%;
   max-width: none !important;
   min-height: 100vh;
-  background-color: #181b22;
+  background-color: transparent;
   display: flex;
   align-items: center;
   justify-content: center;

@@ -118,7 +118,7 @@ watch(
 <style scoped>
 :root {
   flex-grow: 1;
-  background-color: #181b22;
+  background-color: transparent;
 }
 
 .cat-container {
@@ -128,7 +128,7 @@ watch(
   justify-content: center;
   padding: 30px;
   min-height: 100vh;
-  background-color: #181b22;
+  background-color: transparent;
   box-sizing: border-box;
 }
 
@@ -243,7 +243,9 @@ watch(
   width: 100%;
   height: 60px;
   background-color: #00bfa5;
-  color: #181b22;
+  color: #ffffff;
+  font-weight: 700;
+  border-radius: 10px;
   border: none;
   margin-top: 15px;
 }

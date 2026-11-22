@@ -795,7 +795,7 @@ onMounted(() => {
 <style scoped>
 .admin-page {
   min-height: 100vh;
-  background-color: #181b22;
+  background-color: transparent;
   padding: 30px 20px;
   color: #ffffff;
   max-width: 1200px !important;
