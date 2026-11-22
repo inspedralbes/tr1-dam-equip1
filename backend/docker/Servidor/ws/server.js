@@ -305,6 +305,23 @@ export function setupWebSocket(server) {
         }
       }
 
+      // 4b. L'amfitrió tanca la votació abans que votin tots ("Tancar votació")
+      if (msg.type === "endCategoryVote") {
+        const room = rooms.get(ws.roomId);
+        if (!room || room.hostId !== ws.id) return;
+        if (room.state === "VOTING_CATEGORY") finishCategoryVote(room);
+      }
+
+      // 4c. L'amfitrió no vol esperar els 3,5 s ("Començar ronda")
+      if (msg.type === "startRound") {
+        const room = rooms.get(ws.roomId);
+        if (!room || room.hostId !== ws.id) return;
+        if (room.state === "CATEGORY_CHOSEN") {
+          clearTimeout(room.startTimeout);
+          startNextQuestion(room);
+        }
+      }
+
       // 5. ENVIAR RESPOSTA NUMÈRICA (RAD-3 / RAD-4 / T8 / T11)
       if (msg.type === "submitAnswer") {
         const room = rooms.get(ws.roomId);
@@ -417,6 +434,26 @@ export function setupWebSocket(server) {
           p.score = 0;
         }
 
+        // A la BD és una partida nova (si no, les rondes xoquen amb les de l'anterior)
+        if (room.dbId) {
+          try {
+            await jocService.arxivarPartida(room.dbId);
+            const nova = await jocService.crearPartida(String(room.id), room.maxPlayers, room.totalRounds);
+            room.dbId = nova.id;
+            room.currentRondaDbId = null;
+            for (const p of room.players) {
+              const part = await jocService.unirsePartida(String(room.id), p.name);
+              p.dbId = part.id;
+            }
+            wss.clients.forEach((c) => {
+              const p = room.players.find((x) => x.id === c.id);
+              if (c.roomId === room.id && p) c.dbParticipantId = p.dbId;
+            });
+          } catch (err) {
+            console.error("Error en crear la nova partida a la BD:", err.message);
+          }
+        }
+
         broadcastToRoom(
           room.id,
           JSON.stringify({
@@ -482,7 +519,7 @@ function finishCategoryVote(room) {
   );
   console.log(`Categoria guanyadora a sala ${room.id}: ${winningCat}`);
 
-  setTimeout(() => {
+  room.startTimeout = setTimeout(() => {
     startNextQuestion(room);
   }, 3500);
 }
@@ -677,7 +714,8 @@ async function finishGame(room) {
     try {
       const dbRanking = await jocService.obtenirClassificacio(room.dbId);
       if (dbRanking && dbRanking.length > 0) {
-        ranking = dbRanking.map((r) => ({
+        // només els que encara són a la sala (a la BD hi ha també els que han marxat)
+        ranking = dbRanking.filter((r) => room.players.some((p) => p.name === r.nom)).map((r) => ({
           name: r.nom,
           score: Number(r.punts_totals),
         }));
@@ -708,8 +746,16 @@ function leaveRoom(ws) {
     delete room.categoryVotes[ws.id];
   }
 
+  if (room.state === "LOBBY" && ws.dbParticipantId) {
+    jocService.sortirPartida(ws.dbParticipantId).catch((err) =>
+      console.error("Error en treure el participant de la BD:", err.message),
+    );
+    ws.dbParticipantId = null;
+  }
+
   if (room.players.length === 0) {
     if (room.countdownInterval) clearInterval(room.countdownInterval);
+    clearTimeout(room.startTimeout);
     rooms.delete(ws.roomId);
     console.log(`Sala ${ws.roomId} eliminada`);
   } else {
@@ -725,6 +771,14 @@ function leaveRoom(ws) {
         players: getRoomPlayersPayload(room),
       }),
     );
+
+    // si només faltava el que ha marxat, no deixem la votació o la ronda penjades
+    if (room.state === "VOTING_CATEGORY" && Object.keys(room.categoryVotes).length >= room.players.length) {
+      finishCategoryVote(room);
+    }
+    if (room.state === "VOTING" && Object.keys(room.answers).length >= room.players.length) {
+      finishRound(room);
+    }
   }
   ws.roomId = null;
 }
