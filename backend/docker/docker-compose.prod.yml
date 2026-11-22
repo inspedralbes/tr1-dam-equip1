@@ -1,0 +1,22 @@
+# Només per al servidor de producció (tr1grup1.dam.inspedralbes.cat).
+# S'afegeix per sobre de docker-compose.yml:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+# En local es continua fent servir només "docker compose up -d --build" (port 8090)
+
+services:
+  nginx:
+    ports: !override        # treu el 8090 de docker-compose.yml i posa el 80 i el 443
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/prod.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./certbot/conf:/etc/letsencrypt:ro
+      - ./certbot/www:/var/www/certbot:ro
+
+  # No s'engega amb "up": només amb "docker compose run" per treure o renovar el certificat
+  certbot:
+    image: certbot/certbot
+    profiles: ["certbot"]
+    volumes:
+      - ./certbot/conf:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot

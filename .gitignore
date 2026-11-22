@@ -37,3 +37,6 @@ __screenshots__/
 
 # Vite
 *.timestamp-*-*.mjs
+
+# Certificats de Let's Encrypt (claus privades, només al servidor)
+backend/docker/certbot/
