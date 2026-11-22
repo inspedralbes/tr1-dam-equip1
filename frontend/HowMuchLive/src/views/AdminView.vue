@@ -5,10 +5,7 @@ import { useRouter } from "vue-router";
 const router = useRouter();
 
 // URL de l'API backend (configurable per provar en local o al servidor remot)
-const defaultHost =
-  typeof window !== "undefined" && window.location.hostname !== "localhost"
-    ? `http://${window.location.hostname}:8090`
-    : "http://2.31.112.198:8090";
+const defaultHost = import.meta.env.VITE_API_URL || window.location.origin;
 
 const apiUrl = ref(localStorage.getItem("admin_api_url") || defaultHost);
 
@@ -373,7 +370,7 @@ onMounted(() => {
         <input
           v-model="apiUrl"
           class="api-input"
-          placeholder="http://2.31.112.198:8090"
+          placeholder="https://tr1grup1.dam.inspedralbes.cat"
         />
         <v-btn size="small" class="api-btn" @click="guardarApiUrl"
           >Connectar</v-btn

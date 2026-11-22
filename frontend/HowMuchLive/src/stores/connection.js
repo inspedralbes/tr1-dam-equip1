@@ -3,8 +3,10 @@ import { ref } from "vue";
 import { useRoomStore } from "@/stores/room";
 import { useGameStore } from "@/stores/game";
 
-// provisonal, ordinador unai
-const URL_SERVIDOR = "ws://grup1howmuch.dam.inspedralbes.cat:8090";
+// en dev ve del .env.development, en producció el mateix servidor que serveix la web
+const URL_SERVIDOR =
+  import.meta.env.VITE_WS_URL ||
+  `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}`;
 
 export const useConnectionStore = defineStore("connection", () => {
   const estat = ref("desconnectat");
