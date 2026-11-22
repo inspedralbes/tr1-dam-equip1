@@ -1,13 +1,28 @@
+# El context del build és l'arrel del repo (veure docker-compose.yml)
+
+# 1. Compilem el frontend de Vue
+FROM node:22-alpine AS frontend
+
+WORKDIR /frontend
+
+COPY frontend/HowMuchLive/package*.json ./
+RUN npm ci
+
+COPY frontend/HowMuchLive ./
+RUN npm run build
+
+# 2. Servidor Node, que també serveix el dist
 FROM node:22-alpine
 
 WORKDIR /app
 
-COPY package*.json ./
+COPY backend/docker/Servidor/package*.json ./
 RUN npm ci --omit=dev
 
-COPY index.js ./
-COPY ws ./ws
-COPY db ./db
+COPY backend/docker/Servidor/index.js ./
+COPY backend/docker/Servidor/ws ./ws
+COPY backend/docker/Servidor/db ./db
+COPY --from=frontend /frontend/dist ./public
 
 ENV PORT=3000
 EXPOSE 3000
