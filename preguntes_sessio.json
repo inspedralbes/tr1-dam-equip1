@@ -1,0 +1,46 @@
+[
+  {
+    "enunciat": "Quants segons té un dia sencer de 24 hores?",
+    "resposta": 86400,
+    "unitat": "segons",
+    "categoria": "Ciència",
+    "min_valor": 1000,
+    "max_valor": 100000
+  },
+  {
+    "enunciat": "Quants metres d'alçada fa la Torre Eiffel?",
+    "resposta": 330,
+    "unitat": "metres",
+    "categoria": "Cultura",
+    "min_valor": 50,
+    "max_valor": 1000
+  },
+  {
+    "enunciat": "Quants països formen part de la Unió Europea actualment?",
+    "resposta": 27,
+    "unitat": "països",
+    "categoria": "Geografia",
+    "min_valor": 1,
+    "max_valor": 100
+  },
+  {
+    "enunciat": "Pregunta de prova invàlida 1: la resposta és un text en lloc d'un número",
+    "resposta": "cent cinquanta",
+    "unitat": "unitats",
+    "categoria": "Ciència"
+  },
+  {
+    "enunciat": "",
+    "resposta": 42,
+    "unitat": "km",
+    "categoria": "Geografia"
+  },
+  {
+    "enunciat": "Pregunta de prova invàlida 3: el valor mínim és superior al màxim",
+    "resposta": 50,
+    "unitat": "graus",
+    "categoria": "Ciència",
+    "min_valor": 100,
+    "max_valor": 20
+  }
+]

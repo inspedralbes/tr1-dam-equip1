@@ -114,4 +114,3 @@ export const useConnectionStore = defineStore("connection", () => {
 
   return { estat, errorServidor, connectar, enviar, desconnectar };
 });
-
