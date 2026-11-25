@@ -1,0 +1,24 @@
+<ui:UXML xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" noNamespaceSchemaLocation="../../../UIElementsSchema/UIElements.xsd" editor-extension-mode="False">
+    <Style src="project://database/Assets/UI/Categoria/Categoria.uss?fileID=7433441132597879392&amp;guid=f0e792965954f156b9bcf6c31eeceedc&amp;type=3#Categoria"/>
+    <ui:VisualElement class="cat-container">
+        <ui:VisualElement class="cat-box">
+            
+            <ui:Label text="Escull Categoria" name="titleLabel" class="cat-title"/>
+            <ui:Label text="Vota quina categoria vols jugar aquesta ronda" name="statusLabel" class="cat-subtitle"/>
+            <ui:Label text="Vots: 0 / 0" name="votedCountLabel" class="voted-label"/>
+            <ui:Label text="" name="winnerLabel" class="winner-label" style="display: none;"/>
+            
+            <ui:VisualElement class="grid-container">
+                <ui:VisualElement class="row">
+                    <ui:Button text="Carregant..." name="btnCat1" class="cat-btn"/>
+                    <ui:Button text="Carregant..." name="btnCat2" class="cat-btn"/>
+                </ui:VisualElement>
+                <ui:VisualElement class="row">
+                    <ui:Button text="Carregant..." name="btnCat3" class="cat-btn"/>
+                    <ui:Button text="Carregant..." name="btnCat4" class="cat-btn"/>
+                </ui:VisualElement>
+            </ui:VisualElement>
+            
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>
