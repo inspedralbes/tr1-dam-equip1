@@ -154,3 +154,99 @@ body,
     padding: 18px 16px;
   }
 }
+
+/* ==========================================================
+   Animacions
+   ========================================================== */
+
+/* Clic: el botó s'enfonsa una mica mentre el prems */
+button:not(:disabled):active,
+.v-btn:not(.v-btn--disabled):not(.v-btn--variant-text):active {
+  transform: translateY(0) scale(0.96) !important;
+}
+
+/* Entrada: apareix pujant una mica */
+@keyframes hm-entrada {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Pop: creix una mica i torna a la mida normal */
+@keyframes hm-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* Batec per avisar (compte enrere) */
+@keyframes hm-batec {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.08);
+  }
+}
+
+/* Lluïssor que passa per sobre (1r de la classificació) */
+@keyframes hm-brillantor {
+  from {
+    background-position: -200% 0;
+  }
+  to {
+    background-position: 200% 0;
+  }
+}
+
+.hm-entrada {
+  animation: hm-entrada 0.45s ease both;
+}
+
+.hm-pop {
+  animation: hm-pop 0.45s ease both;
+}
+
+/* Llistes que apareixen un element darrere l'altre.
+   Cada element porta style="--i: index" per saber quant ha d'esperar */
+.hm-escalonat > * {
+  animation: hm-entrada 0.4s ease both;
+  animation-delay: calc(var(--i, 0) * 80ms + 150ms);
+}
+
+/* Elements que entren o surten d'una llista (TransitionGroup name="llista") */
+.llista-enter-active,
+.llista-leave-active {
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.llista-enter-from,
+.llista-leave-to {
+  opacity: 0;
+  transform: translateX(-12px);
+}
+
+/* Si l'usuari té les animacions reduïdes al sistema, les respectem */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

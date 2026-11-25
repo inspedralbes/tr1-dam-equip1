@@ -99,7 +99,7 @@ async function eliminarCategoria(cat) {
     mostrarAlerta(`Categoria "${cat.nom}" eliminada`, "success");
     await carregarCategories();
   } catch (err) {
-    mostrarAlerta(`T6 (Esborrat Protegit): ${err.message}`, "error");
+    mostrarAlerta(`${err.message}`, "error");
   }
 }
 
@@ -207,7 +207,7 @@ async function desarPregunta() {
     );
     await carregarPreguntes();
   } catch (err) {
-    errorPregunta.value = `Validació Sequelize (T5): ${err.message}`;
+    errorPregunta.value = `${err.message}`;
   }
 }
 
@@ -299,7 +299,7 @@ async function importarJSON() {
     );
     await carregarPreguntes();
   } catch (err) {
-    mostrarAlerta(`Error d'importació (T12a): ${err.message}`, "error");
+    mostrarAlerta(`Error d'importació: ${err.message}`, "error");
   } finally {
     carregantImportacio.value = false;
   }
@@ -349,9 +349,7 @@ onMounted(() => {
       <div class="admin-header">
         <div>
           <h1 class="admin-title">Panell d'Administració</h1>
-          <p class="admin-subtitle">
-            Banc de preguntes (RAD-2/RA3) i Gestió de fitxers (RAD-5/RA1)
-          </p>
+          <p class="admin-subtitle">Banc de preguntes i Gestió de fitxers</p>
         </div>
         <div class="header-actions">
           <v-btn
@@ -481,8 +479,8 @@ onMounted(() => {
           <div v-if="tabActiva === 'categories'">
             <div class="table-toolbar">
               <p class="toolbar-hint">
-                Requisit T6: No es pot eliminar una categoria que tingui
-                preguntes associades.
+                No es pot eliminar una categoria que tingui preguntes
+                associades.
               </p>
               <v-btn class="primary-btn" @click="obrirNovaCategoria"
                 >+ Nova Categoria</v-btn
@@ -536,9 +534,7 @@ onMounted(() => {
             <div class="files-grid">
               <!-- Secció Importació JSON -->
               <div class="file-box">
-                <h3 class="box-title">
-                  Importar Preguntes des de JSON (T12a / T12b)
-                </h3>
+                <h3 class="box-title">Importar Preguntes des de JSON</h3>
                 <p class="box-desc">
                   Valida les preguntes amb <code>validarPregunta()</code>,
                   insereix les vàlides mitjançant Sequelize i genera un informe
@@ -616,7 +612,7 @@ onMounted(() => {
 
               <!-- Secció Exportació CSV -->
               <div class="file-box">
-                <h3 class="box-title">Exportar Partida Acabada a CSV (T13)</h3>
+                <h3 class="box-title">Exportar Partida Acabada a CSV</h3>
                 <p class="box-desc">
                   Genera un fitxer CSV complet amb
                   <code>csv-stringify</code> contenint la classificació final i

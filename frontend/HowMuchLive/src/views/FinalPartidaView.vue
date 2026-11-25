@@ -38,15 +38,15 @@ watch(() => game.fase, (fase) => {
             <header class="final-header">
                 <span class="trofeu" aria-hidden="true">🏆</span>
                 <h2 class="final-title">Partida acabada</h2>
-                <p v-if="game.classificacioFinal?.length" class="guanyador">
+                <p v-if="game.classificacioFinal?.length" class="guanyador hm-entrada" style="animation-delay: 0.5s">
                     Guanya <strong>{{ game.classificacioFinal[0].name }}</strong>
                     amb {{ game.classificacioFinal[0].score }} punts
                 </p>
             </header>
 
             <h3 class="section-title">Classificació final</h3>
-            <ol class="rank-list">
-                <li v-for="(j, i) in game.classificacioFinal" :key="j.id" class="rank-item" :class="'rank-' + (i + 1)">
+            <ol class="rank-list hm-escalonat">
+                <li v-for="(j, i) in game.classificacioFinal" :key="j.id" class="rank-item" :class="'rank-' + (i + 1)" :style="{ '--i': i + 4 }">
                     <span class="rank-pos">{{ i + 1 }}</span>
                     <span class="rank-name">{{ j.name }}</span>
                     <span class="rank-score">{{ j.score }} pts</span>
@@ -160,9 +160,34 @@ watch(() => game.fase, (fase) => {
   border-bottom: 1px solid var(--hm-border);
 }
 
+/* El trofeu entra amb un rebot i després flota suaument */
 .trofeu {
+  display: inline-block;
   font-size: 48px;
   line-height: 1;
+  animation: trofeu-entra 0.7s cubic-bezier(0.2, 0.9, 0.3, 1.4) both,
+    trofeu-flota 3s ease-in-out 0.8s infinite;
+}
+
+@keyframes trofeu-entra {
+  from {
+    opacity: 0;
+    transform: scale(0.3) rotate(-20deg);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) rotate(0);
+  }
+}
+
+@keyframes trofeu-flota {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
 }
 
 .final-title {
@@ -181,7 +206,11 @@ watch(() => game.fase, (fase) => {
   color: var(--hm-gold);
 }
 
+/* Guanyador: fons daurat amb una lluïssor que hi passa per sobre */
 .rank-1 {
-  background: rgba(251, 191, 36, 0.08);
+  background: linear-gradient(90deg, rgba(251, 191, 36, 0.08) 30%, rgba(251, 191, 36, 0.2) 50%, rgba(251, 191, 36, 0.08) 70%);
+  background-size: 200% 100%;
+  animation: hm-entrada 0.4s ease both, hm-brillantor 3s ease-in-out infinite;
+  animation-delay: calc(var(--i, 0) * 80ms + 150ms), 1.2s;
 }
 </style>

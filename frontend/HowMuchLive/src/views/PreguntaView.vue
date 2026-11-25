@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch } from "vue";
+import { computed, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useConnectionStore } from "@/stores/connection";
 import { useGameStore } from "@/stores/game";
@@ -11,6 +11,17 @@ const game = useGameStore();
 const hiHaRang = game.minim !== null && game.maxim !== null;
 const valor = ref(hiHaRang ? Math.round((game.minim + game.maxim) / 2) : 0);
 const enviada = ref(false);
+
+// Barra de temps: percentatge que queda
+const percentTemps = computed(() => {
+  if (game.segonsRestants === null || !game.segonsTotals) return 100;
+  return (game.segonsRestants / game.segonsTotals) * 100;
+});
+
+// Últims 5 segons: la barra es posa vermella i el text batega
+const pocTemps = computed(
+  () => game.segonsRestants !== null && game.segonsRestants <= 5,
+);
 
 function enviarResposta() {
   if (enviada.value) return;
@@ -32,24 +43,37 @@ watch(
   <div class="pregunta-root d-flex flex-column">
     <v-container class="panel d-flex flex-column pa-0">
       <!-- TOP HEADER / BADGE DE RONDA -->
-      <div class="ronda-badge">
+      <div class="ronda-badge hm-entrada">
         Ronda {{ game.ronda }} de {{ game.totalRondes }}
       </div>
 
       <!-- TIMER BOX -->
       <div v-if="game.segonsRestants !== null" class="timer-box">
-        <span class="timer-text"
+        <span class="timer-text" :class="{ urgent: pocTemps }"
           >Temps restant: {{ game.segonsRestants }} s</span
         >
       </div>
 
-      <!-- PREGUNTA CARD -->
-      <div class="pregunta-card elevation-0">
+      <!-- Barra de temps que es va buidant -->
+      <div v-if="game.segonsRestants !== null" class="temps-barra">
+        <div
+          class="temps-omplert"
+          :class="{ urgent: pocTemps }"
+          :style="{ width: percentTemps + '%' }"
+        ></div>
+      </div>
+
+      <!-- PREGUNTA CARD (key = ronda perquè es torni a animar a cada pregunta) -->
+      <div :key="game.ronda" class="pregunta-card elevation-0 entrada-pregunta">
         <div class="pregunta-text">{{ game.pregunta }}</div>
       </div>
 
       <!-- SLIDER / CONTROLES DE RESPUESTA -->
-      <div v-if="hiHaRang" class="slider-box d-flex flex-column">
+      <div
+        v-if="hiHaRang"
+        class="slider-box d-flex flex-column hm-entrada"
+        style="animation-delay: 0.25s"
+      >
         <div class="slider-row">
           <span class="val-label-min">{{
             game.minim?.toLocaleString("ca-ES")
@@ -69,17 +93,19 @@ watch(
           }}</span>
         </div>
 
-        <div class="estimacio-label">
+        <div class="estimacio-label" :class="{ fixada: enviada }">
           La teva resposta: {{ valor.toLocaleString("ca-ES") }}
           {{ game.unitat }}
         </div>
 
         <v-btn
           class="btn-submit"
+          :class="{ enviada }"
           :disabled="enviada"
           @click="enviarResposta"
           flat
         >
+          <span v-if="enviada" class="check">✓</span>
           {{ enviada ? "Resposta enviada" : "Enviar resposta" }}
         </v-btn>
       </div>
@@ -91,17 +117,22 @@ watch(
       </div>
 
       <!-- LISTA DE JUGADORES QUE HAN RESPONDIDO -->
-      <div class="posicions-card align-self-center mt-8">
+      <div
+        class="posicions-card align-self-center mt-8 hm-entrada"
+        style="animation-delay: 0.4s"
+      >
         <div class="posicions-title">
           Han respost {{ game.respostes.length }} de {{ game.totalJugadors }}
         </div>
         <v-list bg-color="transparent" class="pa-0">
-          <v-list-item
-            v-for="r in game.respostes"
-            :key="r.id"
-            :title="r.nom"
-            class="posicio-item pa-0"
-          />
+          <TransitionGroup name="llista">
+            <v-list-item
+              v-for="r in game.respostes"
+              :key="r.id"
+              :title="r.nom"
+              class="posicio-item pa-0"
+            />
+          </TransitionGroup>
         </v-list>
       </div>
     </v-container>
@@ -304,5 +335,81 @@ watch(
   color: #cbd5e1;
   font-weight: bold;
   margin-bottom: 4px;
+}
+
+/* ---------- Animacions ---------- */
+
+/* La pregunta entra fent zoom suau des del centre */
+.entrada-pregunta {
+  animation: pregunta-entra 0.5s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+  animation-delay: 0.1s;
+}
+
+@keyframes pregunta-entra {
+  from {
+    opacity: 0;
+    transform: scale(0.92) translateY(10px);
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+    filter: blur(0);
+  }
+}
+
+/* Barra de temps */
+.temps-barra {
+  width: 88%;
+  height: 4px;
+  align-self: center;
+  margin: 10px 0 12px;
+  background: #1d212b;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.temps-omplert {
+  height: 100%;
+  background: #00bfa5;
+  border-radius: 4px;
+  transition: width 1s linear, background-color 0.3s ease;
+}
+
+.temps-omplert.urgent {
+  background: #f43f5e;
+}
+
+.timer-text {
+  display: inline-block;
+  transition: background-color 0.3s ease;
+}
+
+.timer-text.urgent {
+  animation: hm-batec 1s ease-in-out infinite;
+  background-color: #3a1d27;
+}
+
+/* La resposta queda "fixada" quan l'envies */
+.estimacio-label {
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.estimacio-label.fixada {
+  border-color: #00bfa5;
+  box-shadow: 0 0 0 3px rgba(0, 191, 165, 0.15);
+}
+
+/* Botó d'enviar: quan s'ha enviat fa un petit "pop" */
+.btn-submit.enviada {
+  animation: hm-pop 0.4s ease;
+  opacity: 1 !important;
+  background-color: #10b981 !important;
+}
+
+.check {
+  display: inline-block;
+  margin-right: 6px;
+  animation: hm-pop 0.4s ease 0.1s both;
 }
 </style>

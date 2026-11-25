@@ -22,6 +22,7 @@ export const useGameStore = defineStore('game', () => {
     const unitat = ref('')
     const respostes = ref([])
     const segonsRestants = ref(null)
+    const segonsTotals = ref(null) // per dibuixar la barra de temps
 
     // Resultats de la ronda
     const respostaCorrecta = ref(null)
@@ -44,6 +45,7 @@ export const useGameStore = defineStore('game', () => {
     function iniciarCompteEnrere(segons) {
         aturarCompteEnrere()
         segonsRestants.value = segons
+        segonsTotals.value = segons
         intervalCompteEnrere = setInterval(() => {
             segonsRestants.value--
             if (segonsRestants.value <= 0) {
@@ -141,7 +143,7 @@ export const useGameStore = defineStore('game', () => {
 
     return {
         fase, categories, votsRebuts, totalJugadors, categoriaGuanyadora, recompte, vots,
-        ronda, totalRondes, pregunta, minim, maxim, unitat, respostes, segonsRestants,
+        ronda, totalRondes, pregunta, minim, maxim, unitat, respostes, segonsRestants, segonsTotals,
         respostaCorrecta, resultats, classificacio, classificacioFinal,
         iniciarVotacioCategories, registrarVot, categoriaTriada, iniciarRonda, registrarResposta,
         iniciarCompteEnrere, mostrarResultats, acabarPartida, reiniciar

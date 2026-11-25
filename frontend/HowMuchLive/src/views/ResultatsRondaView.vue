@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useConnectionStore } from '@/stores/connection'
 import { useGameStore } from '@/stores/game'
@@ -11,6 +11,29 @@ const game = useGameStore()
 const room = useRoomStore()
 
 const enviat = ref(false)
+
+// La resposta correcta es compta des de 0 fins al valor real (efecte "comptador")
+const respostaMostrada = ref(0)
+
+function animarResposta() {
+    const final = game.respostaCorrecta
+    if (typeof final !== 'number') {
+        respostaMostrada.value = final
+        return
+    }
+    const durada = 900 // ms
+    const inici = performance.now()
+
+    function pas(ara) {
+        const t = Math.min((ara - inici) / durada, 1)
+        const suau = 1 - Math.pow(1 - t, 3) // va ràpid al principi i frena al final
+        respostaMostrada.value = t < 1 ? Math.round(final * suau) : final
+        if (t < 1) requestAnimationFrame(pas)
+    }
+    requestAnimationFrame(pas)
+}
+
+onMounted(animarResposta)
 
 function seguent() {
     if (enviat.value) return
@@ -41,31 +64,31 @@ watch(() => game.fase, (fase) => {
                 <h2 class="pregunta">{{ game.pregunta }}</h2>
             </header>
 
-            <div class="resposta-correcta">
+            <div class="resposta-correcta hm-pop">
                 <span class="resposta-label">Resposta correcta</span>
                 <span class="resposta-valor">
-                    {{ game.respostaCorrecta?.toLocaleString('ca-ES') }} {{ game.unitat }}
+                    {{ respostaMostrada?.toLocaleString('ca-ES') }} {{ game.unitat }}
                 </span>
             </div>
 
             <div class="columnes">
                 <div>
                     <h3 class="section-title">Resultats de la ronda</h3>
-                    <ul class="rank-list">
-                        <li v-for="r in game.resultats" :key="r.id" class="rank-item">
+                    <ul class="rank-list hm-escalonat">
+                        <li v-for="(r, i) in game.resultats" :key="r.id" class="rank-item" :style="{ '--i': i }">
                             <span class="rank-name">{{ r.name }}</span>
                             <span class="hm-muted estimacio">
                                 {{ r.estimate === null ? 'No ha respost' : r.estimate.toLocaleString('ca-ES') + ' ' + game.unitat }}
                             </span>
-                            <span class="punts-ronda" :class="{ zero: !r.roundPoints }">+{{ r.roundPoints ?? 0 }}</span>
+                            <span class="punts-ronda" :class="{ zero: !r.roundPoints }" :style="{ '--i': i }">+{{ r.roundPoints ?? 0 }}</span>
                         </li>
                     </ul>
                 </div>
 
                 <div>
                     <h3 class="section-title">Classificació</h3>
-                    <ol class="rank-list">
-                        <li v-for="(j, i) in game.classificacio" :key="j.id" class="rank-item" :class="'rank-' + (i + 1)">
+                    <ol class="rank-list hm-escalonat">
+                        <li v-for="(j, i) in game.classificacio" :key="j.id" class="rank-item" :class="'rank-' + (i + 1)" :style="{ '--i': i + 2 }">
                             <span class="rank-pos">{{ i + 1 }}</span>
                             <span class="rank-name">{{ j.name }}</span>
                             <span class="rank-score">{{ j.score }} pts</span>
@@ -241,6 +264,29 @@ watch(() => game.fase, (fase) => {
 
 .punts-ronda.zero {
   color: var(--hm-text-muted);
+}
+
+/* Els punts guanyats fan "pop" una mica després que aparegui la fila */
+.punts-ronda:not(.zero) {
+  display: inline-block;
+  animation: hm-pop 0.45s ease both;
+  animation-delay: calc(var(--i, 0) * 80ms + 550ms);
+}
+
+.rank-item {
+  transition: background-color 0.2s ease;
+}
+
+.rank-item:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+/* Lluïssor suau al primer de la classificació */
+.rank-1 {
+  background: linear-gradient(90deg, transparent 30%, rgba(251, 191, 36, 0.1) 50%, transparent 70%);
+  background-size: 200% 100%;
+  animation: hm-entrada 0.4s ease both, hm-brillantor 3s ease-in-out infinite;
+  animation-delay: calc(var(--i, 0) * 80ms + 150ms), 1s;
 }
 
 .espera {

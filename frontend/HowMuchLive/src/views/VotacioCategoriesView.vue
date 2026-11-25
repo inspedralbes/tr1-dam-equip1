@@ -32,8 +32,7 @@ watch(
   (fase) => {
     if (fase === "QUESTION") {
       router.push({ name: "pregunta" });
-    }
-  },
+    }  },
 );
 </script>
 
@@ -52,14 +51,15 @@ watch(
         </div>
 
         <!-- Cuadrícula 2x2 para los botones -->
-        <div class="categories-grid">
+        <div class="categories-grid hm-escalonat">
           <button
-            v-for="c in game.categories"
+            v-for="(c, i) in game.categories"
             :key="c"
             class="cat-btn"
             :class="{
               'btn-voted': categoriaVotada === c,
             }"
+            :style="{ '--i': i }"
             :disabled="categoriaVotada !== '' && categoriaVotada !== c"
             @click="votar(c)"
           >
@@ -69,10 +69,12 @@ watch(
 
         <!-- Lista de votos en tiempo real -->
         <div class="vots-list" v-if="game.vots && game.vots.length > 0">
-          <div v-for="v in game.vots" :key="v.id" class="vot-item">
-            <span>{{ v.nom }}</span
-            >: <b>{{ v.categoria }}</b>
-          </div>
+          <TransitionGroup name="llista">
+            <div v-for="v in game.vots" :key="v.id" class="vot-item">
+              <span>{{ v.nom }}</span
+              >: <b>{{ v.categoria }}</b>
+            </div>
+          </TransitionGroup>
         </div>
 
         <button
@@ -85,18 +87,19 @@ watch(
       </div>
 
       <!-- FASE DE CATEGORÍA ELEGIDA -->
-      <div v-else-if="game.fase === 'CATEGORY_CHOSEN'" class="grid-container">
+      <div v-else-if="game.fase === 'CATEGORY_CHOSEN'" class="grid-container hm-entrada">
         <div class="cat-title">Resultats de la votació</div>
 
-        <div class="winner-label">
+        <div class="winner-label hm-pop" style="animation-delay: 0.15s">
           Categoria triada: {{ game.categoriaGuanyadora }}
         </div>
 
-        <div class="grid-container">
+        <div class="grid-container hm-escalonat">
           <div
-            v-for="(n, categoria) in game.recompte"
+            v-for="(n, categoria, i) in game.recompte"
             :key="categoria"
             class="result-row"
+            :style="{ '--i': i + 2 }"
           >
             <span>{{ categoria }}</span>
             <span class="badge-vots">{{ n }} vots</span>
@@ -215,7 +218,13 @@ watch(
   cursor: pointer;
   transition:
     background-color 0.2s,
-    border-color 0.2s;
+    border-color 0.2s,
+    box-shadow 0.2s;
+}
+
+/* En passar el ratolí, una vora turquesa suau */
+.cat-btn:hover:not(:disabled):not(.btn-voted) {
+  box-shadow: 0 0 0 3px rgba(0, 191, 165, 0.12);
 }
 
 .cat-btn:hover:not(:disabled) {
@@ -228,7 +237,8 @@ watch(
 }
 
 .cat-btn:disabled {
-  opacity: 0.6;
+  /* !important porque l'animació d'entrada deixa l'opacitat a 1 */
+  opacity: 0.6 !important;
   cursor: not-allowed;
 }
 
@@ -237,6 +247,8 @@ watch(
   border-color: #38bdf8 !important;
   color: #38bdf8 !important;
   border-width: 2px;
+  box-shadow: 0 0 18px rgba(56, 189, 248, 0.25);
+  animation: hm-pop 0.4s ease both;
 }
 
 .action-btn {

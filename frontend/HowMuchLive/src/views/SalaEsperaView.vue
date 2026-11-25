@@ -74,12 +74,14 @@ watch(
       </div>
 
       <v-list class="players-scroll" density="comfortable">
-        <v-list-item v-for="p in room.participants" :key="p.nom" class="player-item" :title="p.nom"
-          :subtitle="p.esHost ? 'Amfitrió' : undefined">
-          <template #prepend>
-            <div class="avatar" :class="{ host: p.esHost }">{{ p.nom?.charAt(0).toUpperCase() }}</div>
-          </template>
-        </v-list-item>
+        <TransitionGroup name="llista">
+          <v-list-item v-for="p in room.participants" :key="p.nom" class="player-item" :title="p.nom"
+            :subtitle="p.esHost ? 'Amfitrió' : undefined">
+            <template #prepend>
+              <div class="avatar hm-pop" :class="{ host: p.esHost }">{{ p.nom?.charAt(0).toUpperCase() }}</div>
+            </template>
+          </v-list-item>
+        </TransitionGroup>
       </v-list>
 
       <div class="footer-row">
