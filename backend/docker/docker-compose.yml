@@ -3,10 +3,11 @@ services:
     image: mariadb:11
     restart: unless-stopped
     environment:
-      MARIADB_ROOT_PASSWORD: rootpassword
-      MARIADB_DATABASE: howmuch
-      MARIADB_USER: howmuch
-      MARIADB_PASSWORD: howmuchpassword
+      # Les credencials es llegeixen de backend/docker/.env (no es puja a git, veure .env.example)
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?Falta DB_ROOT_PASSWORD al fitxer .env}
+      MARIADB_DATABASE: ${DB_NAME:-howmuch}
+      MARIADB_USER: ${DB_USER:-howmuch}
+      MARIADB_PASSWORD: ${DB_PASSWORD:?Falta DB_PASSWORD al fitxer .env}
     volumes:
       - db_data:/var/lib/mysql
       - ./db:/docker-entrypoint-initdb.d:ro
@@ -25,9 +26,9 @@ services:
       PORT: 3000
       DB_HOST: mariadb
       DB_PORT: 3306
-      DB_NAME: howmuch
-      DB_USER: howmuch
-      DB_PASSWORD: howmuchpassword
+      DB_NAME: ${DB_NAME:-howmuch}
+      DB_USER: ${DB_USER:-howmuch}
+      DB_PASSWORD: ${DB_PASSWORD:?Falta DB_PASSWORD al fitxer .env}
     depends_on:
       mariadb:
         condition: service_healthy
@@ -43,6 +44,7 @@ services:
     ports:
       - "80:80"
       - "443:443"
+      - "8090:80"     # port que fa servir el client de Unity (ws://IP:8090)
     volumes:
       - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
       - ssl_certs:/etc/nginx/ssl

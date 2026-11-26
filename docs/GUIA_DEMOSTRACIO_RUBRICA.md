@@ -25,7 +25,7 @@ docker compose up -d --build                        # Aixeca MariaDB, Servidor i
 ```
 Per comprovar que les taules s'han creat perfectament:
 ```bash
-docker compose exec mariadb mariadb -u howmuch -phowmuchpassword howmuch -e "SHOW TABLES;"
+docker compose exec mariadb sh -c 'mariadb -u "$MARIADB_USER" -p"$MARIADB_PASSWORD" "$MARIADB_DATABASE" -e "SHOW TABLES;"'
 ```
 Sortiran: `categories`, `partides`, `participants`, `preguntes`, `respostes`, `rondes`.
 
