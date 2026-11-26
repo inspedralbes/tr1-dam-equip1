@@ -1,6 +1,8 @@
 import express from 'express';
 import cors from 'cors';
 import { createServer } from 'http';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { setupWebSocket } from './ws/server.js';
 import * as preguntesService from './db/preguntesService.js';
 import * as jocService from './db/jocService.js';
@@ -13,7 +15,7 @@ app.use(cors());
 app.use(express.json());
 
 // Endpoint per al healthcheck de docker
-app.get('/', (req, res) => {
+app.get('/health', (req, res) => {
   res.send('Servidor How Much?! LIVE funcionant');
 });
 
@@ -176,6 +178,31 @@ app.get('/api/partides/:id/classificacio', async (req, res, next) => {
   } catch (err) {
     next(err);
   }
+});
+
+// Frontend compilat (el Dockerfile copia el dist de Vue a public/)
+const carpetaWeb = fileURLToPath(new URL('./public', import.meta.url));
+
+// Redireccions netes cap a /howmuch (sense /#/)
+app.get('/', (req, res) => {
+  res.redirect('/howmuch');
+});
+
+app.get('/game', (req, res) => {
+  res.redirect('/howmuch');
+});
+
+app.get('/admin', (req, res) => {
+  res.redirect('/howmuch/admin');
+});
+
+app.use('/howmuch', express.static(carpetaWeb));
+app.use(express.static(carpetaWeb));
+
+// Rutes de Vue Router (/howmuch, /howmuch/sala, /howmuch/admin...) -> index.html
+app.use((req, res, next) => {
+  if (req.method !== 'GET' || req.path.startsWith('/api') || req.path === '/health') return next();
+  res.sendFile(path.join(carpetaWeb, 'index.html'));
 });
 
 // ==========================================

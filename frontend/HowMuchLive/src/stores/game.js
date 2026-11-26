@@ -104,6 +104,8 @@ export const useGameStore = defineStore('game', () => {
         aturarCompteEnrere()
         ronda.value = missatge.round
         totalRondes.value = missatge.totalRounds ?? totalRondes.value
+        minim.value = missatge.min ?? minim.value
+        maxim.value = missatge.max ?? maxim.value
         unitat.value = missatge.unit ?? unitat.value
         respostaCorrecta.value = missatge.correctAnswer
         resultats.value = missatge.results

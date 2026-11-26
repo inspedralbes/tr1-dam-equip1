@@ -1,19 +1,25 @@
 <script setup>
 import { ref, onMounted, computed } from "vue";
 import { useRouter } from "vue-router";
+import { buildApiUrl, useConnectionStore } from "@/stores/connection";
 
 const router = useRouter();
+const connexio = useConnectionStore();
 
-// URL de l'API backend (configurable per provar en local o al servidor remot)
-const defaultHost =
-  typeof window !== "undefined"
-    ? `http://${window.location.hostname}:8090`
-    : "http://grup1howmuch.dam.inspedralbes.cat:8090";
+// URL de l'API backend (accepta només una IP sense port, o auto-detecta el servidor web)
+const savedApi = typeof localStorage !== "undefined" ? localStorage.getItem("admin_api_url") : null;
+const initialApi =
+  savedApi && !savedApi.includes(":8090") && !(connexio.serverHost !== "localhost" && savedApi.includes("localhost"))
+    ? buildApiUrl(savedApi)
+    : buildApiUrl(connexio.serverHost);
 
-const apiUrl = ref(localStorage.getItem("admin_api_url") || defaultHost);
+const apiUrl = ref(initialApi);
 
 function guardarApiUrl() {
-  localStorage.setItem("admin_api_url", apiUrl.value);
+  const normalized = buildApiUrl(apiUrl.value);
+  apiUrl.value = normalized;
+  localStorage.setItem("admin_api_url", normalized);
+  connexio.setServerHost(normalized.replace(/^https?:\/\//i, ""));
   carregarDades();
 }
 
@@ -371,7 +377,7 @@ onMounted(() => {
         <input
           v-model="apiUrl"
           class="api-input"
-          placeholder="http://2.31.112.198:8090"
+          placeholder="2.31.112.198"
         />
         <v-btn size="small" class="api-btn" @click="guardarApiUrl"
           >Connectar</v-btn

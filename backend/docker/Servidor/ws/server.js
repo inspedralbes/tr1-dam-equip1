@@ -37,6 +37,7 @@ function getRoomPlayersPayload(room) {
     id: p.id,
     name: p.name,
     score: p.score,
+    avatar: p.avatar ?? 0,
     isHost: p.id === room.hostId,
   }));
 }
@@ -94,7 +95,7 @@ export function setupWebSocket(server) {
           dbId: dbPartidaId,
           hostId: ws.id,
           state: "LOBBY",
-          players: [{ id: ws.id, dbId: dbPartId, name: ws.name, score: 0 }],
+          players: [{ id: ws.id, dbId: dbPartId, name: ws.name, score: 0, avatar: Number.isFinite(Number(msg.avatar)) ? Number(msg.avatar) : 0 }],
           maxPlayers: maxPlayers,
           totalRounds: totalRounds,
           round: 0,
@@ -204,8 +205,12 @@ export function setupWebSocket(server) {
         ws.name = requestedName;
         ws.isHost = room.hostId === ws.id;
 
-        if (!room.players.some((p) => p.id === ws.id)) {
-          room.players.push({ id: ws.id, dbId: dbPartId, name: requestedName, score: 0 });
+        const avatarId = Number.isFinite(Number(msg.avatar)) ? Number(msg.avatar) : 0;
+        const existingPlayer = room.players.find((p) => p.id === ws.id);
+        if (!existingPlayer) {
+          room.players.push({ id: ws.id, dbId: dbPartId, name: requestedName, score: 0, avatar: avatarId });
+        } else {
+          existingPlayer.avatar = avatarId;
         }
 
         const playersPayload = getRoomPlayersPayload(room);
@@ -225,7 +230,7 @@ export function setupWebSocket(server) {
           roomId,
           JSON.stringify({
             type: "playerJoined",
-            player: { id: ws.id, name: ws.name, score: 0, isHost: ws.isHost },
+            player: { id: ws.id, name: ws.name, score: 0, avatar: avatarId, isHost: ws.isHost },
             players: playersPayload,
           }),
         );
@@ -590,6 +595,7 @@ async function finishRound(room) {
       id: p.id,
       dbId: p.dbId,
       name: p.name,
+      avatar: p.avatar ?? 0,
       estimate: answered ? ans : null,
       diff: diff,
       order: orderIndex >= 0 ? orderIndex : 999,
@@ -677,10 +683,14 @@ async function finishGame(room) {
     try {
       const dbRanking = await jocService.obtenirClassificacio(room.dbId);
       if (dbRanking && dbRanking.length > 0) {
-        ranking = dbRanking.map((r) => ({
-          name: r.nom,
-          score: Number(r.punts_totals),
-        }));
+        ranking = dbRanking.map((r) => {
+          const pl = room.players.find((p) => p.name === r.nom);
+          return {
+            name: r.nom,
+            score: Number(r.punts_totals),
+            avatar: pl ? (pl.avatar ?? 0) : 0,
+          };
+        });
       }
     } catch (e) {
       console.error("Error obtenint classificació SQL:", e.message);

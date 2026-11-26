@@ -38,28 +38,25 @@ watch(
 </script>
 
 <template>
-  <div class="cat-container">
-    <div class="cat-box">
-      <!-- FASE DE VOTACIÓN -->
+  <div class="studio-backdrop">
+    <div class="studio-card cat-box panel-enter">
+      <!-- FASE DE VOTACIÓ -->
       <div v-if="game.fase === 'VOTING_CATEGORY'" class="grid-container">
-        <div class="cat-title">Votació de categories</div>
+        <div class="cat-title">Escull Categoria</div>
         <div class="cat-subtitle">
-          Tria una categoria per a la pròxima ronda
+          Vota quina categoria vols jugar aquesta ronda
         </div>
 
         <div class="voted-label">
-          Han votat {{ game.votsRebuts }} de {{ game.totalJugadors }} jugadors
+          Vots: {{ game.votsRebuts }} / {{ game.totalJugadors }}
         </div>
 
-        <!-- Cuadrícula 2x2 para los botones -->
         <div class="categories-grid">
           <button
             v-for="c in game.categories"
             :key="c"
             class="cat-btn"
-            :class="{
-              'btn-voted': categoriaVotada === c,
-            }"
+            :class="{ 'btn-voted': categoriaVotada === c }"
             :disabled="categoriaVotada !== '' && categoriaVotada !== c"
             @click="votar(c)"
           >
@@ -67,45 +64,45 @@ watch(
           </button>
         </div>
 
-        <!-- Lista de votos en tiempo real -->
         <div class="vots-list" v-if="game.vots && game.vots.length > 0">
-          <div v-for="v in game.vots" :key="v.id" class="vot-item">
-            <span>{{ v.nom }}</span
-            >: <b>{{ v.categoria }}</b>
+          <div v-for="v in game.vots" :key="v.id" class="vot-chip">
+            <span class="vot-nom">{{ v.nom }}</span>
+            <span class="vot-cat">{{ v.categoria }}</span>
           </div>
         </div>
 
         <button
           v-if="room.esHost"
-          class="cat-btn action-btn mt-4"
+          class="action-btn"
           @click="tancarVotacio"
         >
           Tancar votació
         </button>
       </div>
 
-      <!-- FASE DE CATEGORÍA ELEGIDA -->
+      <!-- FASE DE CATEGORIA TRIADA -->
       <div v-else-if="game.fase === 'CATEGORY_CHOSEN'" class="grid-container">
-        <div class="cat-title">Resultats de la votació</div>
+        <div class="cat-title">Votació finalitzada</div>
 
         <div class="winner-label">
           Categoria triada: {{ game.categoriaGuanyadora }}
         </div>
 
-        <div class="grid-container">
+        <div class="results-list">
           <div
             v-for="(n, categoria) in game.recompte"
             :key="categoria"
             class="result-row"
+            :class="{ 'is-winner': categoria === game.categoriaGuanyadora }"
           >
-            <span>{{ categoria }}</span>
+            <span class="result-cat">{{ categoria }}</span>
             <span class="badge-vots">{{ n }} vots</span>
           </div>
         </div>
 
         <button
           v-if="room.esHost"
-          class="cat-btn action-btn mt-4"
+          class="action-btn"
           @click="comencarRonda"
         >
           Començar ronda
@@ -116,70 +113,12 @@ watch(
 </template>
 
 <style scoped>
-:root {
-  flex-grow: 1;
-  background-color: #181b22;
-}
-
-.cat-container {
-  display: flex;
-  flex-grow: 1;
-  align-items: center;
-  justify-content: center;
-  padding: 30px;
-  min-height: 100vh;
-  background-color: #181b22;
-  box-sizing: border-box;
-}
-
 .cat-box {
-  width: 860px;
-  max-width: 100%;
-  background-color: #242834;
-  border-radius: 12px;
-  padding: 30px;
-  border: 1px solid #333a4a;
+  width: min(860px, 100%);
+  padding: 32px;
   display: flex;
   flex-direction: column;
   align-items: center;
-}
-
-.cat-title {
-  font-size: 28px;
-  color: #ffffff;
-  font-weight: bold;
-  margin-bottom: 6px;
-  text-align: center;
-}
-
-.cat-subtitle {
-  font-size: 15px;
-  color: #94a3b8;
-  margin-bottom: 10px;
-  text-align: center;
-}
-
-.voted-label {
-  font-size: 14px;
-  color: #94a3b8;
-  background-color: #1d212b;
-  border: 1px solid #333a4a;
-  padding: 6px 16px;
-  border-radius: 6px;
-  margin-bottom: 16px;
-  font-weight: bold;
-}
-
-.winner-label {
-  font-size: 18px;
-  color: #00bfa5;
-  background-color: #142926;
-  border: 1px solid #00bfa5;
-  padding: 8px 24px;
-  border-radius: 6px;
-  margin-bottom: 16px;
-  font-weight: bold;
-  text-align: center;
 }
 
 .grid-container {
@@ -189,87 +128,163 @@ watch(
   align-items: center;
 }
 
-/* Nueva clase para organizar las categorías en 2 columnas (2 arriba, 2 abajo) */
+.cat-title {
+  font-size: 28px;
+  color: #ffffff;
+  font-weight: 800;
+  margin-bottom: 6px;
+  text-align: center;
+}
+
+.cat-subtitle {
+  font-size: 15px;
+  color: #94a3b8;
+  margin-bottom: 14px;
+  text-align: center;
+}
+
+.voted-label {
+  font-size: 13px;
+  color: #94a3b8;
+  background-color: #121620;
+  border: 1px solid #2a3346;
+  padding: 6px 18px;
+  border-radius: 999px;
+  margin-bottom: 20px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
+
+.winner-label {
+  font-size: 19px;
+  color: #5eead4;
+  background-color: #102a27;
+  border: 1px solid #14b8a6;
+  padding: 10px 26px;
+  border-radius: 8px;
+  margin: 12px 0 18px;
+  font-weight: 800;
+  text-align: center;
+}
+
 .categories-grid {
   width: 100%;
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
-  margin-bottom: 10px;
+  gap: 14px;
+  margin-bottom: 14px;
 }
 
 .cat-btn {
   width: 100%;
-  height: 90px;
-  margin: 0;
-  background-color: #1d212b;
+  height: 106px;
+  background-color: #121620;
   color: #ffffff;
   font-size: 19px;
-  font-weight: bold;
+  font-weight: 700;
   border-radius: 10px;
-  border: 1px solid #333a4a;
-  white-space: normal;
+  border: 1px solid #2a3346;
+  padding: 12px 18px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition:
-    background-color 0.2s,
-    border-color 0.2s;
+  transition: transform 0.14s ease, background-color 0.16s, border-color 0.16s;
 }
 
 .cat-btn:hover:not(:disabled) {
-  background-color: #282e3d;
+  background-color: #1d2433;
   border-color: #475569;
-}
-
-.cat-btn:active:not(:disabled) {
-  background-color: #151820;
+  transform: translateY(-2px);
 }
 
 .cat-btn:disabled {
-  opacity: 0.6;
+  opacity: 0.55;
   cursor: not-allowed;
 }
 
 .btn-voted {
-  background-color: #1e293b !important;
-  border-color: #38bdf8 !important;
-  color: #38bdf8 !important;
-  border-width: 2px;
+  background-color: #132536 !important;
+  border: 2px solid #38bdf8 !important;
+  color: #7dd3fc !important;
+  opacity: 1 !important;
 }
 
-.action-btn {
+.vots-list {
   width: 100%;
-  height: 60px;
-  background-color: #00bfa5;
-  color: #181b22;
-  border: none;
-  margin-top: 15px;
-}
-.action-btn:hover {
-  background-color: #009d88;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
 }
 
-.vots-list,
+.vot-chip {
+  background: #121620;
+  border: 1px solid #2a3346;
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 13px;
+  color: #cbd5e1;
+  display: inline-flex;
+  gap: 8px;
+}
+
+.vot-cat {
+  color: #38bdf8;
+  font-weight: 700;
+}
+
+.results-list {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
 .result-row {
   width: 100%;
-  color: #94a3b8;
-  margin-top: 15px;
-  background: #1d212b;
-  padding: 10px 15px;
+  color: #cbd5e1;
+  background: #121620;
+  padding: 12px 18px;
   border-radius: 8px;
-  border: 1px solid #333a4a;
+  border: 1px solid #2a3346;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  font-weight: 700;
+}
+
+.result-row.is-winner {
+  background: #102a27;
+  border-color: #14b8a6;
+  color: #ffffff;
 }
 
 .badge-vots {
   color: #ffffff;
-  background: #333a4a;
-  padding: 2px 8px;
-  border-radius: 4px;
-  font-size: 14px;
+  background: #262e3f;
+  padding: 3px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.action-btn {
+  width: 100%;
+  height: 48px;
+  background-color: #14b8a6;
+  color: #0b1116;
+  font-size: 16px;
+  font-weight: 800;
+  border-radius: 8px;
+  border: none;
+  margin-top: 18px;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.action-btn:hover {
+  background-color: #0d9488;
+  color: #ffffff;
 }
 </style>

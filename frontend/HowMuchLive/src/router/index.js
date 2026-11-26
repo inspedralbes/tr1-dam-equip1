@@ -1,4 +1,4 @@
-import { createRouter, createWebHashHistory } from 'vue-router'
+import { createRouter, createWebHistory, createWebHashHistory } from 'vue-router'
 
 import IndexView from '@/views/IndexView.vue'
 import SalaEsperaView from '@/views/SalaEsperaView.vue'
@@ -8,13 +8,21 @@ import ResultatsRondaView from '@/views/ResultatsRondaView.vue'
 import FinalPartidaView from '@/views/FinalPartidaView.vue'
 import AdminView from '@/views/AdminView.vue'
 
+const isFileProtocol = typeof window !== 'undefined' && window.location.protocol === 'file:'
+const useHashRouter = isFileProtocol || import.meta.env.VITE_ROUTER_MODE === 'hash'
+
 const router = createRouter({
-  history: createWebHashHistory(import.meta.env.BASE_URL),
+  // En web fem servir /howmuch sense /#/; en Electron (file://) o mode local mantenim hash history
+  history: useHashRouter ? createWebHashHistory() : createWebHistory('/howmuch'),
   routes: [
     {
       path: '/',
       name: 'home',
       component: IndexView,
+    },
+    {
+      path: '/game',
+      redirect: '/',
     },
     {
       path: '/sala',

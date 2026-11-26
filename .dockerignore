@@ -1,0 +1,11 @@
+**/node_modules
+**/dist
+**/.env
+.git
+.worktrees
+frontend/unity
+frontend/local
+backend/docker/certbot
+backend/docker/Servidor/client
+backend/docker/db
+docs

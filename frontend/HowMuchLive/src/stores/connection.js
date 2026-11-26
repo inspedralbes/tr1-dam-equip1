@@ -3,21 +3,89 @@ import { ref } from "vue";
 import { useRoomStore } from "@/stores/room";
 import { useGameStore } from "@/stores/game";
 
-// provisonal, ordinador unai
-const URL_SERVIDOR = "ws://grup1howmuch.dam.inspedralbes.cat:8090";
+const PROD_SERVER_HOST = import.meta.env.VITE_SERVER_HOST || "2.31.112.198";
+
+export const isElectronFile = () =>
+  typeof window !== "undefined" && window.location.protocol === "file:";
+
+export function getDefaultServerHost() {
+  if (typeof window === "undefined") return PROD_SERVER_HOST;
+  if (isElectronFile()) {
+    return PROD_SERVER_HOST;
+  }
+  // En mode dev/preview local (npm run dev / vite preview) apuntem al servidor real, no a localhost
+  if (window.location.port === "5173" || window.location.port === "4173") {
+    return PROD_SERVER_HOST;
+  }
+  return window.location.host || PROD_SERVER_HOST;
+}
+
+export function normalizeServerInput(raw) {
+  const clean = String(raw || "").trim().replace(/\/+$/, "");
+  return clean || getDefaultServerHost();
+}
+
+export function buildWsUrl(rawInput) {
+  if (import.meta.env.VITE_WS_URL && isElectronFile()) {
+    return import.meta.env.VITE_WS_URL;
+  }
+  const val = normalizeServerInput(rawInput);
+  if (/^wss?:\/\//i.test(val)) return val;
+  if (/^https?:\/\//i.test(val)) return val.replace(/^http/i, "ws");
+  const isHttps = typeof window !== "undefined" && window.location.protocol === "https:";
+  return `${isHttps ? "wss" : "ws"}://${val}`;
+}
+
+export function buildApiUrl(rawInput) {
+  if (import.meta.env.VITE_API_URL && isElectronFile()) {
+    return import.meta.env.VITE_API_URL;
+  }
+  const val = normalizeServerInput(rawInput);
+  if (/^https?:\/\//i.test(val)) return val;
+  if (/^wss?:\/\//i.test(val)) return val.replace(/^ws/i, "http");
+  const isHttps = typeof window !== "undefined" && window.location.protocol === "https:";
+  return `${isHttps ? "https" : "http"}://${val}`;
+}
 
 export const useConnectionStore = defineStore("connection", () => {
   const estat = ref("desconnectat");
   const errorServidor = ref(null);
+  const serverHost = ref(getDefaultServerHost());
   let socket = null;
   let promesaConnexio = null;
+  let urlActual = "";
 
-  function connectar() {
-    if (promesaConnexio) return promesaConnexio;
+  function setServerHost(host) {
+    const clean = normalizeServerInput(host);
+    if (clean !== serverHost.value) {
+      serverHost.value = clean;
+      if (socket) {
+        socket.close();
+        socket = null;
+        promesaConnexio = null;
+      }
+    }
+  }
 
+  function connectar(customHost = null) {
+    if (customHost) {
+      setServerHost(customHost);
+    }
+
+    const targetUrl = buildWsUrl(serverHost.value);
+    if (promesaConnexio && urlActual === targetUrl && socket && socket.readyState !== WebSocket.CLOSED) {
+      return promesaConnexio;
+    }
+
+    if (socket) {
+      socket.close();
+      socket = null;
+    }
+
+    urlActual = targetUrl;
     promesaConnexio = new Promise((resolve, reject) => {
       estat.value = "connectant";
-      socket = new WebSocket(URL_SERVIDOR);
+      socket = new WebSocket(targetUrl);
 
       socket.onopen = () => {
         estat.value = "connectat";
@@ -34,7 +102,8 @@ export const useConnectionStore = defineStore("connection", () => {
       };
 
       socket.onerror = () => {
-        reject(new Error("No s'ha pogut connectar amb el servidor"));
+        promesaConnexio = null;
+        reject(new Error(`No s'ha pogut connectar amb el servidor (${targetUrl})`));
       };
 
       socket.onclose = () => {
@@ -112,5 +181,13 @@ export const useConnectionStore = defineStore("connection", () => {
     }
   }
 
-  return { estat, errorServidor, connectar, enviar, desconnectar };
+  return {
+    estat,
+    errorServidor,
+    serverHost,
+    setServerHost,
+    connectar,
+    enviar,
+    desconnectar,
+  };
 });
