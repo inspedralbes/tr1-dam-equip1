@@ -1,8 +1,5 @@
 import { pool } from './mysql.js';
 
-// Servei de persistència del joc amb mysql2 (RAD-3 i RAD-4)
-
-// 1. Partides i Participants
 export async function crearPartida(codi, maxJugadors = 10, totalRondes = 5) {
   try {
     const [result] = await pool.execute(
@@ -54,8 +51,6 @@ export async function acabarPartida(partidaId) {
   return { id: partidaId, estat: 'acabada' };
 }
 
-// RAD-4 Transacció: Unir-se a una partida (concurrència)
-// Comprova amb SELECT ... FOR UPDATE que la partida encara accepta jugadors i que el nom no es repeteix (T7 / T11)
 export async function unirsePartida(codi, nom) {
   const conn = await pool.getConnection();
   try {
@@ -81,7 +76,6 @@ export async function unirsePartida(codi, nom) {
       throw error;
     }
 
-    // T7: Un nom repetit es rebutja
     const [nomExistent] = await conn.execute(
       'SELECT id FROM participants WHERE partida_id = ? AND LOWER(nom) = LOWER(?)',
       [partida.id, nom]
@@ -138,8 +132,57 @@ export async function obtenirParticipants(partidaId) {
   return rows;
 }
 
-// 2. Rondes i Preguntes de la partida
-// RAD-3 / T8: Obrir rondes amb preguntes que encara no s'hagin fet en aquella partida
+export async function sortirPartida(participantId) {
+  if (!participantId) return;
+  await pool.execute('DELETE FROM participants WHERE id = ?', [participantId]);
+}
+
+export async function reiniciarPartida(anteriorPartidaId, codi, maxJugadors = 10, totalRondes = 5, jugadorsActuals = []) {
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+
+    const [prevRows] = await conn.execute(
+      'SELECT id, estat FROM partides WHERE id = ? OR codi = ? FOR UPDATE',
+      [anteriorPartidaId || 0, codi]
+    );
+
+    for (const row of prevRows) {
+      const archivedCode = `${String(codi).slice(0, 5)}#${row.id.toString(36)}`.slice(0, 10);
+      await conn.execute(
+        'UPDATE partides SET codi = ?, estat = IF(estat = "esperant", "acabada", estat) WHERE id = ?',
+        [archivedCode, row.id]
+      );
+    }
+
+    const [insPartida] = await conn.execute(
+      'INSERT INTO partides (codi, max_jugadors, total_rondes, estat) VALUES (?, ?, ?, "esperant")',
+      [codi, maxJugadors, totalRondes]
+    );
+    const novaPartidaId = insPartida.insertId;
+
+    const participantsMap = {};
+    for (const p of jugadorsActuals) {
+      const [insPart] = await conn.execute(
+        'INSERT INTO participants (partida_id, nom) VALUES (?, ?)',
+        [novaPartidaId, p.name]
+      );
+      participantsMap[p.id] = insPart.insertId;
+    }
+
+    await conn.commit();
+    return {
+      id: novaPartidaId,
+      participantsMap,
+    };
+  } catch (err) {
+    await conn.rollback();
+    throw err;
+  } finally {
+    conn.release();
+  }
+}
+
 export async function obtenirPreguntesDisponibles(partidaId, categoriaId = null) {
   let query = `
     SELECT p.*, c.nom AS categoria_nom 
@@ -187,9 +230,6 @@ export async function obtenirRondaActual(partidaId) {
   return rows[0] || null;
 }
 
-// 3. Respostes i Tancament de Ronda (RAD-4)
-// Transacció: Respondre (concurrència - T11) i restricció UNIQUE (T8)
-// Comprova amb SELECT ... FOR UPDATE que la ronda encara és oberta abans de desar
 export async function respondreRonda(participantId, rondaId, valorEstimat) {
   const conn = await pool.getConnection();
   try {
@@ -240,8 +280,6 @@ export async function respondreRonda(participantId, rondaId, valorEstimat) {
   }
 }
 
-// Transacció: Tancar una ronda (atomicitat - T10)
-// Desa la posició i punts de totes les respostes i marca la ronda com a tancada amb rollback si falla.
 export async function tancarRonda(rondaId, respostesPuntuades) {
   const conn = await pool.getConnection();
   try {
@@ -266,7 +304,6 @@ export async function tancarRonda(rondaId, respostesPuntuades) {
       throw error;
     }
 
-    // Actualitzem les posicions i punts de cada participant
     for (const item of respostesPuntuades) {
       await conn.execute(
         'UPDATE respostes SET posicio = ?, punts = ? WHERE ronda_id = ? AND participant_id = ?',
@@ -274,7 +311,6 @@ export async function tancarRonda(rondaId, respostesPuntuades) {
       );
     }
 
-    // Marquem la ronda com a tancada
     await conn.execute('UPDATE rondes SET estat = "tancada" WHERE id = ?', [rondaId]);
 
     await conn.commit();
@@ -287,8 +323,6 @@ export async function tancarRonda(rondaId, respostesPuntuades) {
   }
 }
 
-// 4. Classificació acumulada i final (RAD-3 / T9)
-// "Classificació acumulada i final amb JOIN, SUM i GROUP BY"
 export async function obtenirClassificacio(partidaId) {
   const [rows] = await pool.execute(
     `SELECT 
@@ -305,7 +339,6 @@ export async function obtenirClassificacio(partidaId) {
   return rows;
 }
 
-// Resum de la partida per a l'exportació CSV (RAD-5 / T13)
 export async function obtenirDetallPartida(partidaId) {
   const partida = await obtenirPartidaPerId(partidaId);
   if (!partida) {

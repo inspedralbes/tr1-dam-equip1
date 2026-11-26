@@ -4,10 +4,6 @@ import { Categoria } from './models/Categoria.js';
 import { Pregunta } from './models/Pregunta.js';
 import { obtenirDetallPartida } from './jocService.js';
 
-// Servei de fitxers JSON i CSV (RAD-5)
-
-// Funció de validació exigida pel requisit RAD-5:
-// "validar cada pregunta amb una funció validarPregunta() que retorni { valid, errors }"
 export function validarPregunta(pregunta, categoriesMap = {}) {
   const errors = [];
 
@@ -15,22 +11,18 @@ export function validarPregunta(pregunta, categoriesMap = {}) {
     return { valid: false, errors: ['El format de la pregunta no és un objecte vàlid'] };
   }
 
-  // Validació de l'enunciat
   if (!pregunta.enunciat || typeof pregunta.enunciat !== 'string' || pregunta.enunciat.trim() === '') {
     errors.push("L'enunciat és obligatori i no pot estar buit");
   }
 
-  // Validació de la resposta
   if (pregunta.resposta === undefined || pregunta.resposta === null || isNaN(Number(pregunta.resposta))) {
     errors.push('La resposta ha de ser un valor numèric vàlid');
   }
 
-  // Validació de la unitat
   if (!pregunta.unitat || typeof pregunta.unitat !== 'string' || pregunta.unitat.trim() === '') {
     errors.push('La unitat és obligatòria');
   }
 
-  // Validació de la categoria (pot venir per nom o per id)
   let catId = pregunta.categoria_id;
   if (!catId && pregunta.categoria) {
     catId = categoriesMap[String(pregunta.categoria).toLowerCase()];
@@ -39,7 +31,6 @@ export function validarPregunta(pregunta, categoriesMap = {}) {
     errors.push('La categoria especificada no existeix o no és vàlida');
   }
 
-  // Validació de rang min_valor i max_valor si existeixen
   if (pregunta.min_valor !== undefined && pregunta.max_valor !== undefined) {
     const min = Number(pregunta.min_valor);
     const max = Number(pregunta.max_valor);
@@ -55,7 +46,6 @@ export function validarPregunta(pregunta, categoriesMap = {}) {
   };
 }
 
-// Processa un array de preguntes per importar-les o validar-les
 export async function processarArrayPreguntes(llistaPreguntes) {
   if (!Array.isArray(llistaPreguntes)) {
     const error = new Error('Les dades han de ser un array de preguntes');
@@ -63,7 +53,6 @@ export async function processarArrayPreguntes(llistaPreguntes) {
     throw error;
   }
 
-  // Mapa de categories existents (per nom en minúscules -> id)
   const categories = await Categoria.findAll();
   const categoriesMap = {};
   for (const cat of categories) {
@@ -110,7 +99,6 @@ export async function processarArrayPreguntes(llistaPreguntes) {
   };
 }
 
-// 1. Importar preguntes des d'un fitxer o array JSON (RAD-5)
 export async function importarPreguntesJSON(input) {
   if (Array.isArray(input)) {
     return await processarArrayPreguntes(input);
@@ -137,17 +125,14 @@ export async function importarPreguntesJSON(input) {
   return await processarArrayPreguntes(llistaPreguntes);
 }
 
-// 2. Exportar una partida acabada a CSV amb csv-stringify (RAD-5)
 export async function exportarPartidaCSV(partidaId, outputPath = null) {
   const dades = await obtenirDetallPartida(partidaId);
 
   const files = [];
 
-  // Capçalera general
   files.push(['# PARTIDA HOW MUCH?! LIVE', dades.partida.codi, `Estat: ${dades.partida.estat}`, `Data: ${dades.partida.created_at}`]);
   files.push([]);
 
-  // Secció 1: Classificació Final
   files.push(['CLASSIFICACIÓ FINAL']);
   files.push(['Posició', 'Participant', 'Punts Totals']);
   dades.classificacio.forEach((jugador, index) => {
@@ -155,11 +140,9 @@ export async function exportarPartidaCSV(partidaId, outputPath = null) {
   });
   files.push([]);
 
-  // Secció 2: Detall de Respostes per Ronda
   files.push(['DETALL DE RESPOSTES PER RONDA']);
   files.push(['Ronda', 'Pregunta', 'Resposta Correcta', 'Unitat', 'Participant', 'Valor Estimat', 'Posició a Ronda', 'Punts Ronda']);
 
-  // Mapa de participants
   const participantsMap = {};
   dades.participants.forEach(p => {
     participantsMap[p.id] = p.nom;

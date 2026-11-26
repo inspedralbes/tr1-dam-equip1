@@ -1,0 +1,11 @@
+{
+  "name": "howmuch-microserveis",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "node --env-file=.env servidor.js"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}

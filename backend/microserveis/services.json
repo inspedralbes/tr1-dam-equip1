@@ -1,0 +1,17 @@
+{
+  "servidor": {
+    "host": "local",
+    "container": "docker-servidor-1",
+    "label": "Servidor Joc (API + WS)"
+  },
+  "mariadb": {
+    "host": "local",
+    "container": "docker-mariadb-1",
+    "label": "Base de Dades (MariaDB)"
+  },
+  "nginx": {
+    "host": "local",
+    "container": "docker-nginx-1",
+    "label": "Proxy Reverse (Nginx)"
+  }
+}

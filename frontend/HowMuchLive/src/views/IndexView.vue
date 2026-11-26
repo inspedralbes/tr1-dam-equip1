@@ -2,33 +2,33 @@
 import { ref, reactive, watch } from "vue";
 import { useConnectionStore } from "@/stores/connection";
 import { usePlayerStore } from "@/stores/player";
-
 import { useRouter } from "vue-router";
-const router = useRouter();
-
-//Constants de la sala
 import { useRoomStore, CONFIG_PER_DEFECTE } from "@/stores/room";
+import AvatarBadge from "@/components/AvatarBadge.vue";
+
+const router = useRouter();
 const room = useRoomStore();
 const connexio = useConnectionStore();
-
 const player = usePlayerStore();
 
-//Codi per gestionar nom jugador
-const nomInput = ref("");
+const mostrarSelectorAvatar = ref(false);
+const opcionsAvatar = [0, 1, 2, 3, 4, 5, 6, 7];
+
+function triarAvatar(id) {
+  player.seleccionarAvatar(id);
+  mostrarSelectorAvatar.value = false;
+}
+
+const nomInput = ref(player.nom || "");
 const error = ref("");
 
 function registrar() {
   const ok = player.registrarNom(nomInput.value);
   error.value = ok ? "" : "El nom no pot estar buit";
 }
-const nom = ref("Introdueix el teu nom");
-if (player.nom != null && player.nom.trim() !== "") {
-  nom.value = player.nom;
-}
-//Codi gestionar codi sala
+
 const codiSala = ref("");
 const errorUnir = ref("");
-
 let ultimaAccio = "";
 
 async function unirse() {
@@ -49,6 +49,7 @@ async function unirse() {
   }
 
   errorUnir.value = "";
+  connexio.errorServidor = null;
   ultimaAccio = "unir";
 
   try {
@@ -57,13 +58,13 @@ async function unirse() {
       type: "joinRoom",
       roomId: Number(codi),
       name: player.nom,
+      avatar: player.avatar,
     });
   } catch (e) {
     errorUnir.value = "No s'ha pogut connectar amb el servidor";
   }
 }
 
-//Codi per gestionar crear sala
 const dialogCrear = ref(false);
 const errorCrear = ref("");
 
@@ -78,7 +79,6 @@ const configSala = reactive({
   ...CONFIG_PER_DEFECTE,
 });
 
-//Gestió del popup de crear sala
 const opcionsJugadors = [2, 3, 4, 5, 6, 7, 8, 9, 10];
 const opcionsRondes = [5, 6, 7, 8, 9, 10];
 
@@ -88,6 +88,7 @@ async function crearSala() {
     return;
   }
   errorCrear.value = "";
+  connexio.errorServidor = null;
   ultimaAccio = "crear";
   dialogCrear.value = false;
 
@@ -96,13 +97,12 @@ async function crearSala() {
     connexio.enviar({
       type: "createRoom",
       name: player.nom,
+      avatar: player.avatar,
       maxPlayers: configSala.maxJugadors,
       totalRounds: configSala.rondes,
     });
-    router.push({ name: "sala-espera" });
   } catch (e) {
     errorCrear.value = "No s'ha pogut connectar amb el servidor";
-    console.log(e.message);
   }
 }
 
@@ -111,26 +111,24 @@ const MISSATGES_ERROR = {
   ROOM_FULL: "La sala està plena",
   ROOM_NOT_FOUND: "No existeix cap sala amb aquest codi",
   INVALID_STATE: "La partida ja ha començat",
+  GAME_OVER: "La partida ha acabat; espera que l'amfitrió premi Nova partida",
 };
 
 watch(
   () => room.codi,
   (nou) => {
     if (nou !== "") {
-      router.push({ name: "sala-espera" });
+      router.replace({ name: "sala-espera" });
     }
   },
 );
 
 watch(
   () => connexio.errorServidor,
-  (error) => {
-    if (!error) return;
-
+  (err) => {
+    if (!err) return;
     const text =
-      MISSATGES_ERROR[error.code] ??
-      error.message ??
-      "Error desconegut del servidor";
+      MISSATGES_ERROR[err.code] ?? err.message ?? "Error desconegut del servidor";
     if (ultimaAccio === "unir") {
       errorUnir.value = text;
     } else {
@@ -141,31 +139,55 @@ watch(
 </script>
 
 <template>
-  <v-container class="index-page">
-    <div class="index-card">
-      <h2 class="index-title">HowMuch?LIVE</h2>
+  <div class="studio-backdrop">
+    <div class="studio-card index-card panel-enter">
+      <div class="avatar-header">
+        <button
+          type="button"
+          class="avatar-trigger"
+          @click="mostrarSelectorAvatar = !mostrarSelectorAvatar"
+          title="Canviar avatar"
+        >
+          <AvatarBadge :avatar-id="player.avatar" :size="76" clickable />
+          <span class="avatar-edit-pill">Canviar avatar</span>
+        </button>
+      </div>
 
+      <div v-if="mostrarSelectorAvatar" class="avatar-picker-panel">
+        <div class="avatar-picker-label">Escull el teu avatar</div>
+        <div class="avatar-grid">
+          <button
+            v-for="id in opcionsAvatar"
+            :key="id"
+            type="button"
+            class="avatar-option-btn"
+            :class="{ 'is-active': player.avatar === id }"
+            @click="triarAvatar(id)"
+          >
+            <AvatarBadge :avatar-id="id" :size="48" :selected="player.avatar === id" clickable />
+          </button>
+        </div>
+      </div>
+
+      <h1 class="index-title">How Much?! <span class="title-live">LIVE</span></h1>
+
+      <label class="field-label">Nom de jugador</label>
       <v-text-field
         class="index-field"
         v-model="nomInput"
-        :placeholder="nom"
+        placeholder="Escriu el teu nom..."
         :error-messages="error"
         @keyup.enter="registrar"
       />
 
-      <p v-if="player.estaRegistrat" class="welcome-message">
-        Endavant, {{ player.nom }}!
-      </p>
-
-      <div class="fila-codi">
-        <v-text-field
-          class="index-field"
-          v-model="codiSala"
-          placeholder="Codi de Sala"
-          :error-messages="errorUnir"
-          @keyup.enter="unirse"
-        />
-      </div>
+      <label class="field-label">Codi de sala</label>
+      <v-text-field
+        class="index-field"
+        v-model="codiSala"
+        placeholder="Codi de 5 xifres per unir-te"
+        :error-messages="errorUnir"
+        @keyup.enter="unirse"
+      />
 
       <div class="action-row">
         <v-btn class="secondary-btn" @click="obrirCrearSala">Crear sala</v-btn>
@@ -173,15 +195,20 @@ watch(
       </div>
 
       <div class="admin-access-row">
-        <v-btn variant="text" size="small" class="admin-nav-btn" @click="router.push({ name: 'admin' })">
-          ⚙️ Panell d'Administració
+        <v-btn
+          variant="text"
+          size="small"
+          class="admin-nav-btn"
+          @click="router.push({ name: 'admin' })"
+        >
+          Panell d'Administració
         </v-btn>
       </div>
 
-      <v-dialog v-model="dialogCrear" max-width="500" class="index-dialog">
-        <v-card title="Crear sala">
+      <v-dialog v-model="dialogCrear" max-width="460" class="index-dialog">
+        <v-card title="Configuració de la sala">
           <v-card-text>
-            <v-radio-group v-model="configSala.visibilitat" label="Visibilitat">
+            <v-radio-group v-model="configSala.visibilitat" label="Visibilitat" inline>
               <v-radio label="Privada" value="privada"></v-radio>
               <v-radio label="Pública" value="publica"></v-radio>
             </v-radio-group>
@@ -200,68 +227,117 @@ watch(
           </v-card-text>
           <v-card-actions>
             <v-spacer />
-            <v-btn @click="dialogCrear = false">Cancel·lar</v-btn>
-            <v-btn @click="crearSala">Crear</v-btn>
+            <v-btn variant="text" @click="dialogCrear = false">Cancel·lar</v-btn>
+            <v-btn class="dialog-confirm-btn" @click="crearSala">Crear sala</v-btn>
           </v-card-actions>
         </v-card>
         <p v-if="errorCrear" class="text-error mt-2">{{ errorCrear }}</p>
       </v-dialog>
     </div>
-  </v-container>
+  </div>
 </template>
 
 <style scoped>
-.fila-codi {
-  display: flex;
-  gap: 8px;
-  align-items: flex-start;
-}
-
-.index-page {
-  min-height: 100vh;
-  background-color: #181b22;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 30px;
-  margin: 0;
-}
-
 .index-card {
-  width: min(100%, 480px);
-  background-color: #242834;
-  border: 1px solid #333a4a;
+  width: min(100%, 470px);
+  padding: 26px 32px 22px;
+}
+
+.avatar-header {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 10px;
+}
+
+.avatar-trigger {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.avatar-edit-pill {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  color: #5eead4;
+  background: rgba(20, 184, 166, 0.12);
+  border: 1px solid rgba(20, 184, 166, 0.4);
+  padding: 3px 12px;
+  border-radius: 999px;
+  transition: background-color 0.15s, border-color 0.15s;
+}
+
+.avatar-trigger:hover .avatar-edit-pill {
+  background: rgba(20, 184, 166, 0.22);
+  border-color: #14b8a6;
+}
+
+.avatar-picker-panel {
+  background-color: #121620;
+  border: 1px solid #2a3346;
   border-radius: 12px;
-  padding: 32px 36px;
-  box-shadow: none;
+  padding: 12px;
+  margin-bottom: 16px;
+}
+
+.avatar-picker-label {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.7px;
+  color: #94a3b8;
+  text-align: center;
+  margin-bottom: 10px;
+}
+
+.avatar-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  justify-items: center;
+}
+
+.avatar-option-btn {
+  background: transparent;
+  border: 0;
+  padding: 3px;
+  border-radius: 50%;
+  cursor: pointer;
 }
 
 .index-title {
-  font-size: 32px;
+  font-size: clamp(24px, 4vw, 30px);
   color: #ffffff;
-  font-weight: 700;
+  font-weight: 800;
   text-align: center;
-  margin: 0 0 22px;
+  margin: 4px 0 18px;
+  letter-spacing: -0.5px;
 }
 
-.welcome-message {
-  margin: 12px 0 8px;
-  color: #dfe7f5;
+.title-live {
+  color: #14b8a6;
 }
 
-.fila-codi {
-  display: flex;
-  gap: 8px;
-  align-items: flex-start;
+.field-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+  color: #94a3b8;
+  margin-bottom: 6px;
 }
 
 .index-field {
-  margin-bottom: 12px;
+  margin-bottom: 10px;
 }
 
 .index-field :deep(.v-field) {
-  background-color: #1d212b;
-  border: 1px solid #333a4a;
+  background-color: #121620;
+  border: 1px solid #2a3346;
   border-radius: 8px;
   min-height: 44px;
   color: #ffffff;
@@ -273,131 +349,101 @@ watch(
 
 .index-field :deep(.v-field__input) {
   color: #ffffff;
-  font-size: 16px;
+  font-size: 15px;
   padding: 0 12px;
   min-height: 44px;
 }
 
-.index-field :deep(.v-label) {
-  color: #94a3b8 !important;
-}
-
 .index-field :deep(.v-field__input::placeholder) {
-  color: #94a3b8;
+  color: #64748b;
   opacity: 1;
 }
 
 .index-field :deep(.v-field--focused .v-field) {
-  border-color: #00bfa5 !important;
+  border-color: #14b8a6 !important;
 }
 
 .action-row {
   display: flex;
-  gap: 8px;
-  margin-top: 18px;
+  gap: 10px;
+  margin-top: 14px;
 }
 
 .secondary-btn,
 .primary-btn {
   flex: 1 1 0;
-  height: 46px;
-  border-radius: 8px;
-  font-size: 16px;
-  font-weight: 700;
-  text-transform: none;
-  letter-spacing: normal;
-  box-shadow: none;
-  border: 0;
-}
-
-.admin-access-row {
-  margin-top: 20px;
-  text-align: center;
-  border-top: 1px solid #333a4a;
-  padding-top: 14px;
-}
-
-.admin-nav-btn {
-  color: #94a3b8 !important;
-  font-size: 13px !important;
-  text-transform: none;
-}
-
-.admin-nav-btn:hover {
-  color: #00bfa5 !important;
-  background: rgba(0, 191, 165, 0.08);
-}
-
-.index-page {
-  width: 100%;
-  max-width: none !important;
-  min-height: 100vh;
-  background-color: #181b22;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 30px;
-  margin: 0;
-}
-
-.index-card {
-  width: min(100%, 480px);
-  margin: 0 auto;
-  background-color: #242834;
-  border: 1px solid #333a4a;
-  border-radius: 12px;
-  padding: 32px 36px;
-  box-shadow: none;
+  height: 46px !important;
+  border-radius: 8px !important;
+  font-size: 15px !important;
+  font-weight: 700 !important;
+  text-transform: none !important;
+  letter-spacing: normal !important;
+  box-shadow: none !important;
 }
 
 .secondary-btn {
-  background-color: #374151 !important;
-  color: #f3f4f6 !important;
+  background-color: #262e3f !important;
+  color: #f1f5f9 !important;
+  border: 1px solid #384359 !important;
 }
 
 .secondary-btn:hover {
-  background-color: #4b5563 !important;
+  background-color: #323c52 !important;
 }
 
 .primary-btn {
-  background-color: #00bfa5 !important;
-  color: #ffffff !important;
+  background-color: #14b8a6 !important;
+  color: #0b1116 !important;
 }
 
 .primary-btn:hover {
-  background-color: #00a892 !important;
-}
-
-.index-dialog :deep(.v-card) {
-  background-color: #242834;
-  border: 1px solid #333a4a;
-  border-radius: 12px;
-  color: #ffffff;
-}
-
-.index-dialog :deep(.v-card-title) {
-  color: #ffffff;
-}
-
-.index-dialog :deep(.v-label),
-.index-dialog :deep(.v-radio),
-.index-dialog :deep(.v-select .v-select__selection-text),
-.index-dialog :deep(.v-select .v-field__input) {
+  background-color: #0d9488 !important;
   color: #ffffff !important;
 }
 
-.index-dialog :deep(.v-field) {
-  background-color: #1d212b;
-  border-radius: 8px;
-  color: #ffffff;
+.admin-access-row {
+  margin-top: 12px;
+  display: flex;
+  justify-content: center;
 }
 
-.index-dialog :deep(.v-field__outline) {
-  display: none;
+.admin-nav-btn {
+  color: #64748b !important;
+  font-size: 12px !important;
+  text-transform: none !important;
 }
 
-.text-error {
-  color: #ff6b6b;
-  margin-top: 8px;
+.admin-nav-btn:hover {
+  color: #cbd5e1 !important;
+}
+
+.index-dialog :deep(.v-card) {
+  background-color: #181d28 !important;
+  color: #f8fafc !important;
+  border: 1px solid #2a3346;
+  border-radius: 12px;
+}
+
+.dialog-confirm-btn {
+  background-color: #14b8a6 !important;
+  color: #0b1116 !important;
+  font-weight: 700 !important;
+  text-transform: none !important;
+}
+
+@media (min-width: 1440px) and (min-height: 820px) {
+  .index-card {
+    width: min(100%, 510px);
+    padding: 32px 38px 26px;
+  }
+}
+
+@media (max-width: 480px) {
+  .index-card {
+    padding: 20px 18px 18px;
+  }
+  .action-row {
+    flex-direction: column;
+  }
 }
 </style>

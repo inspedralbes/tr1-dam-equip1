@@ -2,10 +2,8 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
 export const useGameStore = defineStore('game', () => {
-    // Fase: 'LOBBY' | 'VOTING_CATEGORY' | 'CATEGORY_CHOSEN' | 'QUESTION' | 'ROUND_RESULTS' | 'GAME_OVER'
     const fase = ref('LOBBY')
 
-    // Votació de categories
     const categories = ref([])
     const votsRebuts = ref(0)
     const totalJugadors = ref(0)
@@ -13,7 +11,6 @@ export const useGameStore = defineStore('game', () => {
     const recompte = ref({})
     const vots = ref([])
 
-    // Ronda de pregunta
     const ronda = ref(0)
     const totalRondes = ref(0)
     const pregunta = ref('')
@@ -23,12 +20,10 @@ export const useGameStore = defineStore('game', () => {
     const respostes = ref([])
     const segonsRestants = ref(null)
 
-    // Resultats de la ronda
     const respostaCorrecta = ref(null)
     const resultats = ref([])
     const classificacio = ref([])
 
-    // Final de la partida
     const classificacioFinal = ref([])
 
     let intervalCompteEnrere = null
@@ -104,6 +99,8 @@ export const useGameStore = defineStore('game', () => {
         aturarCompteEnrere()
         ronda.value = missatge.round
         totalRondes.value = missatge.totalRounds ?? totalRondes.value
+        minim.value = missatge.min ?? minim.value
+        maxim.value = missatge.max ?? maxim.value
         unitat.value = missatge.unit ?? unitat.value
         respostaCorrecta.value = missatge.correctAnswer
         resultats.value = missatge.results

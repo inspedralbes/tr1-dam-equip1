@@ -37,6 +37,7 @@ function getRoomPlayersPayload(room) {
     id: p.id,
     name: p.name,
     score: p.score,
+    avatar: p.avatar ?? 0,
     isHost: p.id === room.hostId,
   }));
 }
@@ -62,11 +63,15 @@ export function setupWebSocket(server) {
         return;
       }
 
-      // 1. CREAR SALA (RAD-3 / T7)
       if (msg.type === "createRoom") {
         leaveRoom(ws);
 
-        const roomId = Math.floor(10000 + Math.random() * 90000);
+        let roomId = Math.floor(10000 + Math.random() * 90000);
+        for (let attempt = 0; attempt < 20; attempt++) {
+          const existsInDb = await jocService.obtenirPartidaPerCodi(String(roomId)).catch(() => null);
+          if (!rooms.has(roomId) && !existsInDb) break;
+          roomId = Math.floor(10000 + Math.random() * 90000);
+        }
         ws.roomId = roomId;
         ws.name = (msg.name || `Jugador ${ws.id}`).trim();
         ws.isHost = true;
@@ -77,7 +82,6 @@ export function setupWebSocket(server) {
         let dbPartidaId = null;
         let dbPartId = null;
 
-        // Persistència a la base de dades
         try {
           const dbPartida = await jocService.crearPartida(String(roomId), maxPlayers, totalRounds);
           dbPartidaId = dbPartida.id;
@@ -94,7 +98,7 @@ export function setupWebSocket(server) {
           dbId: dbPartidaId,
           hostId: ws.id,
           state: "LOBBY",
-          players: [{ id: ws.id, dbId: dbPartId, name: ws.name, score: 0 }],
+          players: [{ id: ws.id, dbId: dbPartId, name: ws.name, score: 0, avatar: Number.isFinite(Number(msg.avatar)) ? Number(msg.avatar) : 0 }],
           maxPlayers: maxPlayers,
           totalRounds: totalRounds,
           round: 0,
@@ -127,7 +131,6 @@ export function setupWebSocket(server) {
         console.log(`Sala ${roomId} creada per ${ws.name} (Max: ${maxPlayers}, Rondes: ${totalRounds})`);
       }
 
-      // 2. UNIR-SE A UNA SALA (RAD-3 / RAD-4 / T7 / T11)
       if (msg.type === "joinRoom") {
         const roomId = Number(msg.roomId || msg.code);
         const room = rooms.get(roomId);
@@ -138,6 +141,17 @@ export function setupWebSocket(server) {
               type: "error",
               code: "ROOM_NOT_FOUND",
               message: "No existeix cap sala amb aquest codi",
+            }),
+          );
+          return;
+        }
+
+        if (room.state === "GAME_OVER") {
+          ws.send(
+            JSON.stringify({
+              type: "error",
+              code: "GAME_OVER",
+              message: "La partida ha acabat; espera que l'amfitrió premi Nova partida",
             }),
           );
           return;
@@ -167,7 +181,6 @@ export function setupWebSocket(server) {
 
         const requestedName = (msg.name || `Jugador ${ws.id}`).trim();
 
-        // T7: Un nom repetit es rebutja (norma de la rúbrica)
         const nameExists = room.players.some(
           (p) => p.name.toLowerCase() === requestedName.toLowerCase()
         );
@@ -186,7 +199,6 @@ export function setupWebSocket(server) {
           leaveRoom(ws);
         }
 
-        // Operació transaccional RAD-4 amb bloqueig SELECT ... FOR UPDATE (T11)
         let dbPartId = null;
         try {
           const dbPart = await jocService.unirsePartida(String(roomId), requestedName);
@@ -204,8 +216,12 @@ export function setupWebSocket(server) {
         ws.name = requestedName;
         ws.isHost = room.hostId === ws.id;
 
-        if (!room.players.some((p) => p.id === ws.id)) {
-          room.players.push({ id: ws.id, dbId: dbPartId, name: requestedName, score: 0 });
+        const avatarId = Number.isFinite(Number(msg.avatar)) ? Number(msg.avatar) : 0;
+        const existingPlayer = room.players.find((p) => p.id === ws.id);
+        if (!existingPlayer) {
+          room.players.push({ id: ws.id, dbId: dbPartId, name: requestedName, score: 0, avatar: avatarId });
+        } else {
+          existingPlayer.avatar = avatarId;
         }
 
         const playersPayload = getRoomPlayersPayload(room);
@@ -225,7 +241,7 @@ export function setupWebSocket(server) {
           roomId,
           JSON.stringify({
             type: "playerJoined",
-            player: { id: ws.id, name: ws.name, score: 0, isHost: ws.isHost },
+            player: { id: ws.id, name: ws.name, score: 0, avatar: avatarId, isHost: ws.isHost },
             players: playersPayload,
           }),
         );
@@ -233,7 +249,11 @@ export function setupWebSocket(server) {
         console.log(`Client ${ws.id} (${ws.name}) unit a sala ${roomId}`);
       }
 
-      // 3. INICIAR VOTACIÓ DE CATEGORIES
+      if (msg.type === "leaveRoom") {
+        leaveRoom(ws);
+        return;
+      }
+
       if (msg.type === "startCategoryVote" || msg.type === "startCategories") {
         const room = rooms.get(ws.roomId);
         if (!room) return;
@@ -277,7 +297,6 @@ export function setupWebSocket(server) {
         console.log(`Votació de categories a sala ${ws.roomId}:`, room.categories);
       }
 
-      // 4. VOTAR CATEGORIA
       if (msg.type === "voteCategory") {
         const room = rooms.get(ws.roomId);
         if (!room) return;
@@ -305,7 +324,26 @@ export function setupWebSocket(server) {
         }
       }
 
-      // 5. ENVIAR RESPOSTA NUMÈRICA (RAD-3 / RAD-4 / T8 / T11)
+      if (msg.type === "endCategoryVote") {
+        const room = rooms.get(ws.roomId);
+        if (!room) return;
+        if (room.hostId !== ws.id) return;
+        if (room.state !== "VOTING_CATEGORY") return;
+        finishCategoryVote(room);
+      }
+
+      if (msg.type === "startRound") {
+        const room = rooms.get(ws.roomId);
+        if (!room) return;
+        if (room.hostId !== ws.id) return;
+        if (room.state !== "CATEGORY_CHOSEN") return;
+        if (room.categoryTimer) {
+          clearTimeout(room.categoryTimer);
+          room.categoryTimer = null;
+        }
+        startNextQuestion(room);
+      }
+
       if (msg.type === "submitAnswer") {
         const room = rooms.get(ws.roomId);
         if (!room || room.state !== "VOTING") return;
@@ -313,7 +351,6 @@ export function setupWebSocket(server) {
         const val = Number(msg.answer ?? msg.estimate ?? msg.value);
         if (isNaN(val)) return;
 
-        // T8: Una segona resposta a la mateixa ronda es rebutja
         if (room.answers[ws.id] !== undefined) {
           ws.send(
             JSON.stringify({
@@ -325,7 +362,6 @@ export function setupWebSocket(server) {
           return;
         }
 
-        // Operació transaccional RAD-4 amb bloqueig de ronda oberta (T11)
         if (room.currentRondaDbId && ws.dbParticipantId) {
           try {
             await jocService.respondreRonda(ws.dbParticipantId, room.currentRondaDbId, val);
@@ -356,7 +392,6 @@ export function setupWebSocket(server) {
 
         const answeredCount = Object.keys(room.answers).length;
 
-        // Regla: Si la majoria ha respost, iniciem comptador de 15s si no està actiu
         if (
           answeredCount >= Math.ceil(room.players.length / 2) &&
           !room.timerStarted &&
@@ -381,7 +416,6 @@ export function setupWebSocket(server) {
           }, 1000);
         }
 
-        // Si tothom ha votat, tanquem immediatament
         if (answeredCount >= room.players.length) {
           if (room.countdownInterval) {
             clearInterval(room.countdownInterval);
@@ -391,7 +425,6 @@ export function setupWebSocket(server) {
         }
       }
 
-      // 6. SEGÜENT RONDA (Amfitrió)
       if (msg.type === "nextRound") {
         const room = rooms.get(ws.roomId);
         if (!room) return;
@@ -404,17 +437,54 @@ export function setupWebSocket(server) {
         }
       }
 
-      // 7. NOVA PARTIDA (Amfitrió)
       if (msg.type === "restartGame") {
         const room = rooms.get(ws.roomId);
         if (!room) return;
         if (room.hostId !== ws.id) return;
 
+        if (room.countdownInterval) {
+          clearInterval(room.countdownInterval);
+          room.countdownInterval = null;
+        }
+        if (room.categoryTimer) {
+          clearTimeout(room.categoryTimer);
+          room.categoryTimer = null;
+        }
+
         room.round = 0;
         room.usedQuestions = [];
+        room.categories = [];
+        room.categoryVotes = {};
+        room.selectedCategory = null;
+        room.currentRondaDbId = null;
+        room.currentQuestion = null;
+        room.answers = {};
+        room.answersOrder = [];
+        room.timerStarted = false;
         room.state = "LOBBY";
         for (const p of room.players) {
           p.score = 0;
+        }
+
+        try {
+          const restarted = await jocService.reiniciarPartida(
+            room.dbId,
+            String(room.id),
+            room.maxPlayers,
+            room.totalRounds,
+            room.players
+          );
+          room.dbId = restarted.id;
+          for (const p of room.players) {
+            p.dbId = restarted.participantsMap[p.id] || null;
+          }
+          wss.clients.forEach((client) => {
+            if (client.roomId === room.id && restarted.participantsMap[client.id] !== undefined) {
+              client.dbParticipantId = restarted.participantsMap[client.id];
+            }
+          });
+        } catch (err) {
+          console.error("Error en reiniciar partida a DB:", err.message);
         }
 
         broadcastToRoom(
@@ -459,12 +529,10 @@ function finishCategoryVote(room) {
     }
   }
 
-  // Totes les categories que tenen el nombre màxim de vots
   const tiedCategories = (room.categories || []).filter(
     (c) => (counts[c] || 0) === maxVotes,
   );
 
-  // Desempat intel·ligent: Si hi ha empat, se selecciona aleatòriament entre les empatades
   const winningCat =
     tiedCategories.length > 0
       ? tiedCategories[Math.floor(Math.random() * tiedCategories.length)]
@@ -482,8 +550,14 @@ function finishCategoryVote(room) {
   );
   console.log(`Categoria guanyadora a sala ${room.id}: ${winningCat}`);
 
-  setTimeout(() => {
-    startNextQuestion(room);
+  if (room.categoryTimer) {
+    clearTimeout(room.categoryTimer);
+  }
+  room.categoryTimer = setTimeout(() => {
+    room.categoryTimer = null;
+    if (rooms.has(room.id) && room.state === "CATEGORY_CHOSEN") {
+      startNextQuestion(room);
+    }
   }, 3500);
 }
 
@@ -494,7 +568,6 @@ async function startNextQuestion(room) {
     return;
   }
 
-  // Marcar partida com a en_curs
   if (room.round === 1 && room.dbId) {
     try {
       await jocService.iniciarPartida(room.dbId);
@@ -503,7 +576,6 @@ async function startNextQuestion(room) {
     }
   }
 
-  // RAD-3 / T8: Obrir rondes amb preguntes que encara no s'hagin fet en aquella partida
   let q = null;
   if (room.dbId) {
     try {
@@ -535,7 +607,6 @@ async function startNextQuestion(room) {
     }
   }
 
-  // Fallback si la DB no té preguntes o està offline
   if (!q) {
     const pool = defaultQuestions.filter((item) => !room.usedQuestions.includes(item.text));
     const qList = pool.length > 0 ? pool : defaultQuestions;
@@ -590,6 +661,7 @@ async function finishRound(room) {
       id: p.id,
       dbId: p.dbId,
       name: p.name,
+      avatar: p.avatar ?? 0,
       estimate: answered ? ans : null,
       diff: diff,
       order: orderIndex >= 0 ? orderIndex : 999,
@@ -598,13 +670,11 @@ async function finishRound(room) {
     });
   }
 
-  // Ordenem per menor diferència, i en empat pel més ràpid
   results.sort((a, b) => {
     if (a.diff === b.diff) return a.order - b.order;
     return a.diff - b.diff;
   });
 
-  // Punts: 1r: 3pts, 2n: 2pts, 3r: 1pt, Exacte: +2pts
   const dbUpdates = [];
   for (let i = 0; i < results.length; i++) {
     if (results[i].diff === Infinity) continue;
@@ -631,7 +701,6 @@ async function finishRound(room) {
     }
   }
 
-  // RAD-4 Transacció: Tancar una ronda (atomicitat - T10)
   if (room.currentRondaDbId && dbUpdates.length > 0) {
     try {
       await jocService.tancarRonda(room.currentRondaDbId, dbUpdates);
@@ -671,16 +740,19 @@ async function finishGame(room) {
     }
   }
 
-  // RAD-3 / T9: Rànquing final calculat amb SQL (JOIN, SUM, GROUP BY) si hi ha DB
   let ranking = [...room.players].sort((a, b) => b.score - a.score);
   if (room.dbId) {
     try {
       const dbRanking = await jocService.obtenirClassificacio(room.dbId);
       if (dbRanking && dbRanking.length > 0) {
-        ranking = dbRanking.map((r) => ({
-          name: r.nom,
-          score: Number(r.punts_totals),
-        }));
+        ranking = dbRanking.map((r) => {
+          const pl = room.players.find((p) => p.name === r.nom);
+          return {
+            name: r.nom,
+            score: Number(r.punts_totals),
+            avatar: pl ? (pl.avatar ?? 0) : 0,
+          };
+        });
       }
     } catch (e) {
       console.error("Error obtenint classificació SQL:", e.message);
@@ -699,7 +771,14 @@ async function finishGame(room) {
 
 function leaveRoom(ws) {
   if (!ws.roomId) return;
-  const room = rooms.get(ws.roomId);
+  const roomId = ws.roomId;
+  const room = rooms.get(roomId);
+  const prevDbPartId = ws.dbParticipantId;
+
+  ws.roomId = null;
+  ws.dbParticipantId = null;
+  ws.isHost = false;
+
   if (!room) return;
 
   room.players = room.players.filter((p) => p.id !== ws.id);
@@ -708,16 +787,30 @@ function leaveRoom(ws) {
     delete room.categoryVotes[ws.id];
   }
 
+  if (room.state === "LOBBY" && prevDbPartId) {
+    jocService.sortirPartida(prevDbPartId).catch((err) => {
+      console.error("Error eliminant participant en sortir del lobby:", err.message);
+    });
+  }
+
   if (room.players.length === 0) {
     if (room.countdownInterval) clearInterval(room.countdownInterval);
-    rooms.delete(ws.roomId);
-    console.log(`Sala ${ws.roomId} eliminada`);
+    if (room.categoryTimer) clearTimeout(room.categoryTimer);
+    rooms.delete(roomId);
+    console.log(`Sala ${roomId} eliminada`);
   } else {
     if (room.hostId === ws.id && room.players.length > 0) {
       room.hostId = room.players[0].id;
+      if (wss) {
+        wss.clients.forEach((client) => {
+          if (client.roomId === roomId) {
+            client.isHost = client.id === room.hostId;
+          }
+        });
+      }
     }
     broadcastToRoom(
-      ws.roomId,
+      roomId,
       JSON.stringify({
         type: "playerLeft",
         id: ws.id,
@@ -726,7 +819,6 @@ function leaveRoom(ws) {
       }),
     );
   }
-  ws.roomId = null;
 }
 
 function broadcastToRoom(roomId, message) {

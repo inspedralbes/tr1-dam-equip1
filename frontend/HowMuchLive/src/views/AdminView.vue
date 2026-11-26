@@ -1,21 +1,12 @@
 <script setup>
 import { ref, onMounted, computed } from "vue";
 import { useRouter } from "vue-router";
+import { buildApiUrl, useConnectionStore } from "@/stores/connection";
 
 const router = useRouter();
+const connexio = useConnectionStore();
 
-// URL de l'API backend (configurable per provar en local o al servidor remot)
-const defaultHost =
-  typeof window !== "undefined"
-    ? `http://${window.location.hostname}:8090`
-    : "http://grup1howmuch.dam.inspedralbes.cat:8090";
-
-const apiUrl = ref(localStorage.getItem("admin_api_url") || defaultHost);
-
-function guardarApiUrl() {
-  localStorage.setItem("admin_api_url", apiUrl.value);
-  carregarDades();
-}
+const apiUrl = computed(() => buildApiUrl(connexio.serverHost));
 
 const tabActiva = ref("preguntes");
 const missatgeAlerta = ref({ text: "", tipus: "info", visible: false });
@@ -27,9 +18,6 @@ function mostrarAlerta(text, tipus = "info") {
   }, 5000);
 }
 
-// ----------------------------------------------------
-// Dades: Categories
-// ----------------------------------------------------
 const categories = ref([]);
 const carregarCategories = async () => {
   try {
@@ -106,9 +94,6 @@ async function eliminarCategoria(cat) {
   }
 }
 
-// ----------------------------------------------------
-// Dades: Preguntes
-// ----------------------------------------------------
 const preguntes = ref([]);
 const filtreCategoria = ref(null);
 
@@ -228,9 +213,6 @@ async function eliminarPregunta(p) {
   }
 }
 
-// ----------------------------------------------------
-// Dades: Fitxers (Importació JSON & Exportació CSV)
-// ----------------------------------------------------
 const jsonText = ref("");
 const fitxerSeleccionat = ref(null);
 const informeImportacio = ref(null);
@@ -308,7 +290,6 @@ async function importarJSON() {
   }
 }
 
-// Exportació CSV
 const partides = ref([]);
 const carregarPartides = async () => {
   try {
@@ -333,7 +314,6 @@ function descarregarCSV(id) {
   window.open(url, "_blank");
 }
 
-// Carregar dades inicials
 function carregarDades() {
   carregarCategories();
   carregarPreguntes();
@@ -348,7 +328,6 @@ onMounted(() => {
 <template>
   <v-container class="admin-page">
     <div class="admin-wrapper">
-      <!-- Capçalera -->
       <div class="admin-header">
         <div>
           <h1 class="admin-title">Panell d'Administració</h1>
@@ -364,21 +343,6 @@ onMounted(() => {
           </v-btn>
         </div>
       </div>
-
-      <!-- Barra de configuració URL API -->
-      <div class="api-bar">
-        <span class="api-label">Servidor Backend:</span>
-        <input
-          v-model="apiUrl"
-          class="api-input"
-          placeholder="http://2.31.112.198:8090"
-        />
-        <v-btn size="small" class="api-btn" @click="guardarApiUrl"
-          >Connectar</v-btn
-        >
-      </div>
-
-      <!-- Alerta global -->
       <v-alert
         v-if="missatgeAlerta.visible"
         :type="missatgeAlerta.tipus"
@@ -389,7 +353,6 @@ onMounted(() => {
         {{ missatgeAlerta.text }}
       </v-alert>
 
-      <!-- Pestanyes -->
       <v-card class="admin-card" flat>
         <v-tabs v-model="tabActiva" color="primary" class="admin-tabs">
           <v-tab value="preguntes">Preguntes (CRUD)</v-tab>
@@ -398,9 +361,6 @@ onMounted(() => {
         </v-tabs>
 
         <v-card-text class="pt-6">
-          <!-- ============================================== -->
-          <!-- PESTANYA 1: PREGUNTES                          -->
-          <!-- ============================================== -->
           <div v-if="tabActiva === 'preguntes'">
             <div class="table-toolbar">
               <div class="filter-box">
@@ -476,9 +436,6 @@ onMounted(() => {
             </div>
           </div>
 
-          <!-- ============================================== -->
-          <!-- PESTANYA 2: CATEGORIES                         -->
-          <!-- ============================================== -->
           <div v-if="tabActiva === 'categories'">
             <div class="table-toolbar">
               <p class="toolbar-hint">
@@ -530,12 +487,8 @@ onMounted(() => {
             </div>
           </div>
 
-          <!-- ============================================== -->
-          <!-- PESTANYA 3: FITXERS (JSON I CSV)               -->
-          <!-- ============================================== -->
           <div v-if="tabActiva === 'fitxers'">
             <div class="files-grid">
-              <!-- Secció Importació JSON -->
               <div class="file-box">
                 <h3 class="box-title">Importar Preguntes des de JSON</h3>
                 <p class="box-desc">
@@ -572,7 +525,6 @@ onMounted(() => {
                   </v-btn>
                 </div>
 
-                <!-- Informe d'importació -->
                 <div v-if="informeImportacio" class="import-report mt-4">
                   <h4 class="report-title">
                     Resultat de la Validació i Importació:
@@ -613,7 +565,6 @@ onMounted(() => {
                 </div>
               </div>
 
-              <!-- Secció Exportació CSV -->
               <div class="file-box">
                 <h3 class="box-title">Exportar Partida Acabada a CSV</h3>
                 <p class="box-desc">
@@ -682,7 +633,6 @@ onMounted(() => {
       </v-card>
     </div>
 
-    <!-- DIÀLOG: CREAR / EDITAR CATEGORIA -->
     <v-dialog v-model="dialogCategoria" max-width="450">
       <v-card class="admin-dialog">
         <v-card-title class="dialog-title">
@@ -710,7 +660,6 @@ onMounted(() => {
       </v-card>
     </v-dialog>
 
-    <!-- DIÀLOG: CREAR / EDITAR PREGUNTA -->
     <v-dialog v-model="dialogPregunta" max-width="600">
       <v-card class="admin-dialog">
         <v-card-title class="dialog-title">
@@ -822,37 +771,6 @@ onMounted(() => {
   background-color: #333a4a !important;
   color: #ffffff !important;
   border-radius: 8px;
-  text-transform: none;
-}
-
-.api-bar {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  background: #242834;
-  border: 1px solid #333a4a;
-  padding: 10px 16px;
-  border-radius: 8px;
-  margin-bottom: 20px;
-}
-
-.api-label {
-  font-size: 14px;
-  color: #94a3b8;
-}
-
-.api-input {
-  flex: 1;
-  background: #1d212b;
-  border: 1px solid #333a4a;
-  border-radius: 6px;
-  padding: 6px 12px;
-  color: #ffffff;
-}
-
-.api-btn {
-  background: #00bfa5 !important;
-  color: #ffffff !important;
   text-transform: none;
 }
 
@@ -1072,5 +990,18 @@ onMounted(() => {
   color: #ffffff;
   font-size: 18px;
   font-weight: 700;
+}
+
+@media (max-width: 680px) {
+  .admin-header,
+  .table-toolbar,
+  .filter-box {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .custom-select {
+    width: 100%;
+    min-width: 0;
+  }
 }
 </style>

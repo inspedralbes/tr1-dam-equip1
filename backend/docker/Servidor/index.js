@@ -1,6 +1,8 @@
 import express from 'express';
 import cors from 'cors';
 import { createServer } from 'http';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { setupWebSocket } from './ws/server.js';
 import * as preguntesService from './db/preguntesService.js';
 import * as jocService from './db/jocService.js';
@@ -12,16 +14,10 @@ const server = createServer(app);
 app.use(cors());
 app.use(express.json());
 
-// Endpoint per al healthcheck de docker
-app.get('/', (req, res) => {
+app.get('/health', (req, res) => {
   res.send('Servidor How Much?! LIVE funcionant');
 });
 
-// ==========================================
-// RAD-2: CRUD Banc de Preguntes (Sequelize)
-// ==========================================
-
-// Categories
 app.get('/api/categories', async (req, res, next) => {
   try {
     const categories = await preguntesService.getCategories();
@@ -75,7 +71,6 @@ app.delete('/api/categories/:id', async (req, res, next) => {
   }
 });
 
-// Preguntes
 app.get('/api/preguntes', async (req, res, next) => {
   try {
     const categoriaId = req.query.categoria_id ? parseInt(req.query.categoria_id, 10) : null;
@@ -122,11 +117,6 @@ app.delete('/api/preguntes/:id', async (req, res, next) => {
   }
 });
 
-// ==========================================
-// RAD-5: Fitxers JSON i CSV (RA1)
-// ==========================================
-
-// Importar preguntes des de fitxer o cos JSON
 app.post('/api/preguntes/importar', async (req, res, next) => {
   try {
     const { fitxerPath, preguntes } = req.body;
@@ -144,7 +134,6 @@ app.post('/api/preguntes/importar', async (req, res, next) => {
   }
 });
 
-// Llistar partides per a l'exportació CSV
 app.get('/api/partides', async (req, res, next) => {
   try {
     const partides = await jocService.obtenirPartides();
@@ -154,7 +143,6 @@ app.get('/api/partides', async (req, res, next) => {
   }
 });
 
-// Exportar partida acabada a CSV (RAD-5)
 app.get('/api/partides/:id/exportar-csv', async (req, res, next) => {
   try {
     const partidaId = parseInt(req.params.id, 10);
@@ -167,7 +155,6 @@ app.get('/api/partides/:id/exportar-csv', async (req, res, next) => {
   }
 });
 
-// Classificació acumulada o final (RAD-3)
 app.get('/api/partides/:id/classificacio', async (req, res, next) => {
   try {
     const partidaId = parseInt(req.params.id, 10);
@@ -178,9 +165,28 @@ app.get('/api/partides/:id/classificacio', async (req, res, next) => {
   }
 });
 
-// ==========================================
-// RAD-6: Gestió centralitzada d'errors
-// ==========================================
+const carpetaWeb = fileURLToPath(new URL('./public', import.meta.url));
+
+app.get('/', (req, res) => {
+  res.redirect('/howmuch');
+});
+
+app.get('/game', (req, res) => {
+  res.redirect('/howmuch');
+});
+
+app.get('/admin', (req, res) => {
+  res.redirect('/howmuch/admin');
+});
+
+app.use('/howmuch', express.static(carpetaWeb));
+app.use(express.static(carpetaWeb));
+
+app.use((req, res, next) => {
+  if (req.method !== 'GET' || req.path.startsWith('/api') || req.path === '/health') return next();
+  res.sendFile(path.join(carpetaWeb, 'index.html'));
+});
+
 app.use((err, req, res, next) => {
   console.error('[API Error]:', err.message);
 
@@ -204,7 +210,6 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Configurem el servidor de websockets
 setupWebSocket(server);
 
 const PORT = process.env.PORT || 3000;

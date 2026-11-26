@@ -9,6 +9,7 @@ export const sequelize = new Sequelize(
     port: parseInt(process.env.DB_PORT || "3306", 10),
     dialect: "mysql",
     logging: false,
+    dialectOptions: { connectTimeout: 2000 },
     define: {
       timestamps: false,
       freezeTableName: true,

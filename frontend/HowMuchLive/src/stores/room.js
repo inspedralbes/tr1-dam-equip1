@@ -12,6 +12,7 @@ function convertirParticipants(llista) {
   return llista.map((p, i) => ({
     id: p.id,
     nom: p.name,
+    avatar: p.avatar ?? 0,
     esHost: p.isHost !== undefined ? p.isHost : (i === 0)
   }))
 }
