@@ -9,7 +9,9 @@ const connexio = useConnectionStore();
 const game = useGameStore();
 const room = useRoomStore();
 
-const categoriaVotada = ref("");
+// Si ja havíem votat abans de recarregar, el vot surt a la llista de vots
+const elMeuVot = game.vots.find((v) => v.nom === room.nomEnSala);
+const categoriaVotada = ref(elMeuVot ? elMeuVot.categoria : "");
 
 function votar(categoria) {
   if (categoriaVotada.value !== "") return;

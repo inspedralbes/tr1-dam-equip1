@@ -21,6 +21,7 @@ export const useGameStore = defineStore('game', () => {
     const maxim = ref(null)
     const unitat = ref('')
     const respostes = ref([])
+    const mevaResposta = ref(null) // només ve plena si tornem a la ronda després de recarregar
     const segonsRestants = ref(null)
 
     // Resultats de la ronda
@@ -90,6 +91,7 @@ export const useGameStore = defineStore('game', () => {
         unitat.value = missatge.unit ?? ''
         totalJugadors.value = missatge.totalPlayers
         respostes.value = []
+        mevaResposta.value = missatge.yourAnswer ?? null
         fase.value = 'QUESTION'
     }
 
@@ -107,6 +109,7 @@ export const useGameStore = defineStore('game', () => {
         minim.value = missatge.min ?? minim.value
         maxim.value = missatge.max ?? maxim.value
         unitat.value = missatge.unit ?? unitat.value
+        pregunta.value = missatge.question ?? pregunta.value // si tornem després de recarregar no teníem la pregunta
         respostaCorrecta.value = missatge.correctAnswer
         resultats.value = missatge.results
         classificacio.value = missatge.ranking
@@ -143,7 +146,7 @@ export const useGameStore = defineStore('game', () => {
 
     return {
         fase, categories, votsRebuts, totalJugadors, categoriaGuanyadora, recompte, vots,
-        ronda, totalRondes, pregunta, minim, maxim, unitat, respostes, segonsRestants,
+        ronda, totalRondes, pregunta, minim, maxim, unitat, respostes, mevaResposta, segonsRestants,
         respostaCorrecta, resultats, classificacio, classificacioFinal,
         iniciarVotacioCategories, registrarVot, categoriaTriada, iniciarRonda, registrarResposta,
         iniciarCompteEnrere, mostrarResultats, acabarPartida, reiniciar

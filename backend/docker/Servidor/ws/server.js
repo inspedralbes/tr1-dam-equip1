@@ -1,10 +1,14 @@
 import { WebSocketServer, WebSocket } from "ws";
+import { randomUUID } from "crypto";
 import * as jocService from "../db/jocService.js";
 import * as preguntesService from "../db/preguntesService.js";
 
 const rooms = new Map();
 let nextClientId = 1;
 let wss;
+
+// Si un jugador perd la connexió (p. ex. recarrega la pàgina), li guardem el lloc aquests ms
+const TEMPS_PER_TORNAR = 15000;
 
 const defaultCategories = [
   "Ciència",
@@ -90,6 +94,8 @@ export function setupWebSocket(server) {
           console.error("Error en persistir creació de partida:", err.message);
         }
 
+        const token = randomUUID(); // secret per poder tornar a la partida si recarrega
+
         const room = {
           id: roomId,
           dbId: dbPartidaId,
@@ -109,6 +115,8 @@ export function setupWebSocket(server) {
           usedQuestions: [],
           timerStarted: false,
           countdownInterval: null,
+          tokens: { [token]: ws.id }, // token -> id del jugador (no va dins de players perquè no s'enviï als altres)
+          sortidesPendents: {}, // id del jugador -> setTimeout que el treu si no torna
         };
         rooms.set(roomId, room);
 
@@ -120,6 +128,7 @@ export function setupWebSocket(server) {
             roomId: roomId,
             isHost: true,
             name: ws.name,
+            token: token,
             players: playersPayload,
             maxPlayers: maxPlayers,
             totalRounds: totalRounds,
@@ -213,6 +222,9 @@ export function setupWebSocket(server) {
           existingPlayer.avatar = avatarId;
         }
 
+        const token = randomUUID();
+        room.tokens[token] = ws.id;
+
         const playersPayload = getRoomPlayersPayload(room);
 
         ws.send(
@@ -221,6 +233,7 @@ export function setupWebSocket(server) {
             roomId: roomId,
             isHost: ws.isHost,
             name: requestedName,
+            token: token,
             players: playersPayload,
             totalRounds: room.totalRounds,
           }),
@@ -310,6 +323,24 @@ export function setupWebSocket(server) {
         }
       }
 
+      // 4b. L'amfitrió tanca la votació abans que votin tots ("Tancar votació")
+      if (msg.type === "endCategoryVote") {
+        const room = rooms.get(ws.roomId);
+        if (!room || room.hostId !== ws.id) return;
+        if (room.state === "VOTING_CATEGORY") finishCategoryVote(room);
+      }
+
+      // 4c. L'amfitrió no vol esperar els 3,5 s ("Començar ronda")
+      if (msg.type === "startRound") {
+        const room = rooms.get(ws.roomId);
+        if (!room || room.hostId !== ws.id) return;
+        if (room.state === "CATEGORY_CHOSEN") {
+          clearTimeout(room.startTimeout);
+          room.state = "STARTING_ROUND"; // perquè un doble clic no comenci dues rondes
+          startNextQuestion(room);
+        }
+      }
+
       // 5. ENVIAR RESPOSTA NUMÈRICA (RAD-3 / RAD-4 / T8 / T11)
       if (msg.type === "submitAnswer") {
         const room = rooms.get(ws.roomId);
@@ -369,6 +400,7 @@ export function setupWebSocket(server) {
         ) {
           room.timerStarted = true;
           let secondsLeft = 15;
+          room.timerEnd = Date.now() + secondsLeft * 1000; // per saber quant en queda si algú torna
           broadcastToRoom(
             ws.roomId,
             JSON.stringify({
@@ -422,6 +454,26 @@ export function setupWebSocket(server) {
           p.score = 0;
         }
 
+        // A la BD és una partida nova (si no, les rondes xoquen amb les de l'anterior)
+        if (room.dbId) {
+          try {
+            await jocService.arxivarPartida(room.dbId);
+            const nova = await jocService.crearPartida(String(room.id), room.maxPlayers, room.totalRounds);
+            room.dbId = nova.id;
+            room.currentRondaDbId = null;
+            for (const p of room.players) {
+              const part = await jocService.unirsePartida(String(room.id), p.name);
+              p.dbId = part.id;
+            }
+            wss.clients.forEach((c) => {
+              const p = room.players.find((x) => x.id === c.id);
+              if (c.roomId === room.id && p) c.dbParticipantId = p.dbId;
+            });
+          } catch (err) {
+            console.error("Error en crear la nova partida a la BD:", err.message);
+          }
+        }
+
         broadcastToRoom(
           room.id,
           JSON.stringify({
@@ -430,11 +482,74 @@ export function setupWebSocket(server) {
           }),
         );
       }
+
+      // 8. SORTIR DE LA SALA (botó "Sortir"): marxa del tot, sense esperar que torni
+      if (msg.type === "leaveRoom") {
+        leaveRoom(ws);
+      }
+
+      // 9. TORNAR A LA PARTIDA després de recarregar la pàgina
+      if (msg.type === "reconnect") {
+        const room = rooms.get(Number(msg.roomId));
+        const playerId = room ? room.tokens[msg.token] : undefined;
+        const player = room ? room.players.find((p) => p.id === playerId) : undefined;
+        if (!player) {
+          ws.send(
+            JSON.stringify({
+              type: "error",
+              code: "RECONNECT_FAILED",
+              message: "Ja no formes part d'aquesta partida",
+            }),
+          );
+          return;
+        }
+
+        // Ja no l'hem de treure de la sala
+        clearTimeout(room.sortidesPendents[player.id]);
+        delete room.sortidesPendents[player.id];
+
+        // Si el socket vell encara és viu, el despengem de la sala i el tanquem
+        wss.clients.forEach((c) => {
+          if (c !== ws && c.id === player.id && c.roomId === room.id) {
+            c.roomId = null;
+            c.terminate();
+          }
+        });
+
+        // El socket nou passa a ser el mateix jugador (mateix id: vots, respostes i amfitrió es mantenen)
+        ws.id = player.id;
+        ws.roomId = room.id;
+        ws.name = player.name;
+        ws.dbParticipantId = player.dbId;
+        ws.isHost = room.hostId === player.id;
+
+        ws.send(
+          JSON.stringify({
+            type: "roomJoined",
+            roomId: room.id,
+            isHost: ws.isHost,
+            name: player.name,
+            token: msg.token,
+            players: getRoomPlayersPayload(room),
+            totalRounds: room.totalRounds,
+          }),
+        );
+        enviarEstatPartida(ws, room);
+        ws.send(JSON.stringify({ type: "reconnected", state: room.state }));
+        console.log(`Client ${ws.id} (${ws.name}) ha tornat a la sala ${room.id}`);
+      }
     });
 
     ws.on("close", () => {
-      leaveRoom(ws);
       console.log(`Client ${ws.id} Desconectat`);
+      const room = rooms.get(ws.roomId);
+      if (!room) return;
+
+      // Potser només ha recarregat la pàgina: el traiem de la sala si no torna a temps
+      room.sortidesPendents[ws.id] = setTimeout(() => {
+        delete room.sortidesPendents[ws.id];
+        leaveRoom(ws);
+      }, TEMPS_PER_TORNAR);
     });
   });
 
@@ -477,17 +592,17 @@ function finishCategoryVote(room) {
 
   room.selectedCategory = winningCat;
 
-  broadcastToRoom(
-    room.id,
-    JSON.stringify({
-      type: "categorySelected",
-      category: winningCat,
-      votes: counts,
-    }),
-  );
+  // el guardem per tornar-lo a enviar a qui recarregui la pàgina
+  room.lastCategorySelected = JSON.stringify({
+    type: "categorySelected",
+    category: winningCat,
+    votes: counts,
+  });
+  broadcastToRoom(room.id, room.lastCategorySelected);
   console.log(`Categoria guanyadora a sala ${room.id}: ${winningCat}`);
 
-  setTimeout(() => {
+  // guardem el temporitzador per poder cancel·lar-lo si l'amfitrió prem "Començar ronda"
+  room.startTimeout = setTimeout(() => {
     startNextQuestion(room);
   }, 3500);
 }
@@ -553,25 +668,80 @@ async function startNextQuestion(room) {
   room.answers = {};
   room.answersOrder = [];
   room.timerStarted = false;
+  room.timerEnd = null;
+  room.lastRoundResults = null;
   if (room.countdownInterval) {
     clearInterval(room.countdownInterval);
     room.countdownInterval = null;
   }
 
-  broadcastToRoom(
-    room.id,
-    JSON.stringify({
-      type: "roundStarted",
-      round: room.round,
-      totalRounds: room.totalRounds,
-      question: q.text,
-      min: q.min || 0,
-      max: q.max || 100,
-      unit: q.unit || "",
-      totalPlayers: room.players.length,
-    }),
-  );
+  broadcastToRoom(room.id, JSON.stringify(missatgeRonda(room)));
   console.log(`Ronda ${room.round}/${room.totalRounds} iniciada: "${q.text}"`);
+}
+
+function missatgeRonda(room) {
+  const q = room.currentQuestion;
+  return {
+    type: "roundStarted",
+    round: room.round,
+    totalRounds: room.totalRounds,
+    question: q.text,
+    min: q.min || 0,
+    max: q.max || 100,
+    unit: q.unit || "",
+    totalPlayers: room.players.length,
+  };
+}
+
+// Envia a un sol jugador (el que torna després de recarregar) el que ha passat fins ara.
+// Fa servir els mateixos missatges que la partida normal, així el client gairebé no canvia.
+function enviarEstatPartida(ws, room) {
+  const enviar = (m) => ws.send(typeof m === "string" ? m : JSON.stringify(m));
+
+  if (["VOTING_CATEGORY", "CATEGORY_CHOSEN", "STARTING_ROUND"].includes(room.state)) {
+    enviar({ type: "categoryVoteStarted", categories: room.categories, totalPlayers: room.players.length });
+
+    const idsVots = Object.keys(room.categoryVotes);
+    for (const id of idsVots) {
+      const p = room.players.find((x) => x.id === Number(id));
+      enviar({
+        type: "categoryVoted",
+        id: Number(id),
+        name: p ? p.name : "",
+        category: room.categoryVotes[id],
+        votedCount: idsVots.length,
+        totalPlayers: room.players.length,
+      });
+    }
+
+    if (room.state !== "VOTING_CATEGORY" && room.lastCategorySelected) {
+      enviar(room.lastCategorySelected);
+    }
+  }
+
+  if (room.state === "VOTING") {
+    // yourAnswer: la seva resposta, si ja n'havia enviat (només li arriba a ell)
+    enviar({ ...missatgeRonda(room), yourAnswer: room.answers[ws.id] ?? null });
+
+    for (const id of room.answersOrder) {
+      const p = room.players.find((x) => x.id === id);
+      enviar({
+        type: "playerVoted",
+        id: id,
+        name: p ? p.name : "",
+        votedCount: Object.keys(room.answers).length,
+        totalPlayers: room.players.length,
+      });
+    }
+
+    if (room.timerEnd) {
+      const segons = Math.ceil((room.timerEnd - Date.now()) / 1000);
+      if (segons > 0) enviar({ type: "timerStarted", seconds: segons, total: 15 });
+    }
+  }
+
+  if (room.state === "RESULTS" && room.lastRoundResults) enviar(room.lastRoundResults);
+  if (room.state === "GAME_OVER" && room.lastGameOver) enviar(room.lastGameOver);
 }
 
 async function finishRound(room) {
@@ -648,21 +818,19 @@ async function finishRound(room) {
 
   const ranking = [...room.players].sort((a, b) => b.score - a.score);
 
-  broadcastToRoom(
-    room.id,
-    JSON.stringify({
-      type: "roundResults",
-      round: room.round,
-      totalRounds: room.totalRounds,
-      question: room.currentQuestion.text,
-      correctAnswer: correct,
-      min: room.currentQuestion.min || 0,
-      max: room.currentQuestion.max || 100,
-      unit: room.currentQuestion.unit || "",
-      results: results,
-      ranking: ranking,
-    }),
-  );
+  room.lastRoundResults = JSON.stringify({
+    type: "roundResults",
+    round: room.round,
+    totalRounds: room.totalRounds,
+    question: room.currentQuestion.text,
+    correctAnswer: correct,
+    min: room.currentQuestion.min || 0,
+    max: room.currentQuestion.max || 100,
+    unit: room.currentQuestion.unit || "",
+    results: results,
+    ranking: ranking,
+  });
+  broadcastToRoom(room.id, room.lastRoundResults);
   console.log(`Resultats ronda ${room.round}/${room.totalRounds} enviats`);
 }
 
@@ -683,7 +851,8 @@ async function finishGame(room) {
     try {
       const dbRanking = await jocService.obtenirClassificacio(room.dbId);
       if (dbRanking && dbRanking.length > 0) {
-        ranking = dbRanking.map((r) => {
+        // només els que encara són a la sala (a la BD hi ha també els que han marxat)
+        ranking = dbRanking.filter((r) => room.players.some((p) => p.name === r.nom)).map((r) => {
           const pl = room.players.find((p) => p.name === r.nom);
           return {
             name: r.nom,
@@ -697,13 +866,11 @@ async function finishGame(room) {
     }
   }
 
-  broadcastToRoom(
-    room.id,
-    JSON.stringify({
-      type: "gameOver",
-      ranking: ranking,
-    }),
-  );
+  room.lastGameOver = JSON.stringify({
+    type: "gameOver",
+    ranking: ranking,
+  });
+  broadcastToRoom(room.id, room.lastGameOver);
   console.log(`Partida finalitzada a la sala ${room.id}`);
 }
 
@@ -714,12 +881,27 @@ function leaveRoom(ws) {
 
   room.players = room.players.filter((p) => p.id !== ws.id);
   delete room.answers[ws.id];
+  clearTimeout(room.sortidesPendents[ws.id]);
+  delete room.sortidesPendents[ws.id];
+  for (const t in room.tokens) {
+    if (room.tokens[t] === ws.id) delete room.tokens[t];
+  }
   if (room.categoryVotes) {
     delete room.categoryVotes[ws.id];
   }
 
+  // Si encara no ha començat, el traiem de la BD: pot tornar a entrar amb el mateix nom i no ocupa plaça
+  if (room.state === "LOBBY" && ws.dbParticipantId) {
+    jocService.sortirPartida(ws.dbParticipantId).catch((err) =>
+      console.error("Error en treure el participant de la BD:", err.message),
+    );
+    ws.dbParticipantId = null;
+  }
+
   if (room.players.length === 0) {
     if (room.countdownInterval) clearInterval(room.countdownInterval);
+    clearTimeout(room.startTimeout);
+    for (const id in room.sortidesPendents) clearTimeout(room.sortidesPendents[id]);
     rooms.delete(ws.roomId);
     console.log(`Sala ${ws.roomId} eliminada`);
   } else {
@@ -735,6 +917,14 @@ function leaveRoom(ws) {
         players: getRoomPlayersPayload(room),
       }),
     );
+
+    // si només faltava el que ha marxat, no deixem la votació o la ronda penjades
+    if (room.state === "VOTING_CATEGORY" && Object.keys(room.categoryVotes).length >= room.players.length) {
+      finishCategoryVote(room);
+    }
+    if (room.state === "VOTING" && Object.keys(room.answers).length >= room.players.length) {
+      finishRound(room);
+    }
   }
   ws.roomId = null;
 }

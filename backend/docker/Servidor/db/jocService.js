@@ -130,6 +130,17 @@ export async function unirsePartida(codi, nom) {
   }
 }
 
+// Si algú surt de la sala abans de començar, el traiem perquè no ocupi plaça ni el nom
+export async function sortirPartida(participantId) {
+  await pool.execute('DELETE FROM participants WHERE id = ?', [participantId]);
+}
+
+// Per "Tornar a jugar": la partida vella es queda amb el codi "codi-id" i així
+// es pot crear una de nova amb el mateix codi de sala sense perdre l'historial
+export async function arxivarPartida(partidaId) {
+  await pool.execute('UPDATE partides SET codi = CONCAT(codi, "-", id) WHERE id = ?', [partidaId]);
+}
+
 export async function obtenirParticipants(partidaId) {
   const [rows] = await pool.execute(
     'SELECT id, nom, created_at FROM participants WHERE partida_id = ? ORDER BY id ASC',

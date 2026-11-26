@@ -12,8 +12,11 @@ const game = useGameStore();
 const player = usePlayerStore();
 
 const hiHaRang = game.minim !== null && game.maxim !== null;
-const valor = ref(hiHaRang ? Math.round((game.minim + game.maxim) / 2) : 0);
-const enviada = ref(false);
+// Si ja havíem respost abans de recarregar, tornem a mostrar la nostra resposta
+const valor = ref(
+  game.mevaResposta ?? (hiHaRang ? Math.round((game.minim + game.maxim) / 2) : 0),
+);
+const enviada = ref(game.mevaResposta !== null);
 
 function enviarResposta() {
   if (enviada.value) return;

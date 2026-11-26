@@ -2,6 +2,27 @@ import { defineStore } from "pinia";
 import { ref } from "vue";
 import { useRoomStore } from "@/stores/room";
 import { useGameStore } from "@/stores/game";
+import { usePlayerStore } from "@/stores/player";
+
+// Sessió de la partida (servidor + codi de sala + token secret) per poder tornar-hi si es recarrega la pàgina.
+// sessionStorage: sobreviu a una recàrrega però és de cada pestanya (es pot provar amb diverses pestanyes)
+const CLAU_SESSIO = "howmuch-sessio";
+
+function guardarSessio(missatge, host) {
+  if (!missatge.token) return;
+  sessionStorage.setItem(
+    CLAU_SESSIO,
+    JSON.stringify({ host, roomId: missatge.roomId, token: missatge.token }),
+  );
+}
+
+function esborrarSessio() {
+  sessionStorage.removeItem(CLAU_SESSIO);
+}
+
+export function hiHaSessioGuardada() {
+  return sessionStorage.getItem(CLAU_SESSIO) !== null;
+}
 
 const PROD_SERVER_HOST = import.meta.env.VITE_SERVER_HOST || "2.31.112.198";
 
@@ -54,6 +75,7 @@ export const useConnectionStore = defineStore("connection", () => {
   let socket = null;
   let promesaConnexio = null;
   let urlActual = "";
+  let acabarReconnexio = null; // es crida quan el servidor confirma (o rebutja) la reconnexió
 
   function setServerHost(host) {
     const clean = normalizeServerInput(host);
@@ -125,8 +147,39 @@ export const useConnectionStore = defineStore("connection", () => {
     return true;
   }
 
+  // Botó "Sortir": avisem el servidor perquè ens tregui ja (si no, ens guardaria el lloc uns segons)
   function desconnectar() {
+    if (socket && socket.readyState === WebSocket.OPEN) {
+      socket.send(JSON.stringify({ type: "leaveRoom" }));
+    }
+    esborrarSessio();
     if (socket) socket.close();
+  }
+
+  // Després de recarregar: tornem a entrar a la partida amb el token guardat.
+  // Retorna una promesa: true si hem tornat a la partida, false si no.
+  function reconnectar() {
+    const text = sessionStorage.getItem(CLAU_SESSIO);
+    if (!text) return Promise.resolve(false);
+    const sessio = JSON.parse(text);
+
+    return new Promise((resolve) => {
+      const temps = setTimeout(() => acabar(false), 5000); // si el servidor no contesta
+
+      function acabar(ok) {
+        clearTimeout(temps);
+        acabarReconnexio = null;
+        if (!ok) esborrarSessio();
+        resolve(ok);
+      }
+      acabarReconnexio = acabar;
+
+      connectar(sessio.host)
+        .then(() =>
+          enviar({ type: "reconnect", roomId: sessio.roomId, token: sessio.token }),
+        )
+        .catch(() => acabar(false));
+    });
   }
 
   function gestionarMissatge(missatge) {
@@ -137,6 +190,12 @@ export const useConnectionStore = defineStore("connection", () => {
       case "roomCreated":
       case "roomJoined":
         room.entrarSala(missatge);
+        guardarSessio(missatge, serverHost.value);
+        // després de recarregar el nom s'havia perdut (les pantalles el fan servir per saber qui ets)
+        if (missatge.name) usePlayerStore().registrarNom(missatge.name);
+        break;
+      case "reconnected":
+        if (acabarReconnexio) acabarReconnexio(true);
         break;
       case "playerJoined":
       case "playerLeft":
@@ -152,6 +211,10 @@ export const useConnectionStore = defineStore("connection", () => {
         game.categoriaTriada(missatge);
         break;
       case "error":
+        if (missatge.code === "RECONNECT_FAILED") {
+          if (acabarReconnexio) acabarReconnexio(false);
+          break;
+        }
         errorServidor.value = {
           code: missatge.code,
           message: missatge.message,
@@ -189,5 +252,6 @@ export const useConnectionStore = defineStore("connection", () => {
     connectar,
     enviar,
     desconnectar,
+    reconnectar,
   };
 });

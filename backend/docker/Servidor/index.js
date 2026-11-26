@@ -202,6 +202,8 @@ app.use(express.static(carpetaWeb));
 // Rutes de Vue Router (/howmuch, /howmuch/sala, /howmuch/admin...) -> index.html
 app.use((req, res, next) => {
   if (req.method !== 'GET' || req.path.startsWith('/api') || req.path === '/health') return next();
+  // un fitxer del build que no existeix és un 404, no la pàgina (si no, el navegador rep HTML en lloc de JS)
+  if (req.path.includes('/assets/')) return res.status(404).end();
   res.sendFile(path.join(carpetaWeb, 'index.html'));
 });
 
